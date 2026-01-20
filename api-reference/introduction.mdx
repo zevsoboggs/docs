@@ -171,11 +171,38 @@ curl -X GET "https://loveandpay.io/api/v1/invoices" \
 
 ## SDK и библиотеки
 
-<Card title="TypeScript SDK — Coming Soon!" icon="js" href="/guides/sdk">
-  Официальный SDK на TypeScript уже в разработке и скоро будет доступен. Узнайте подробности и примеры использования.
+<Card title="loveandpay-sdk" icon="npm" href="https://www.npmjs.com/package/loveandpay-sdk">
+  Официальный TypeScript SDK доступен на npm!
 </Card>
 
-Пока SDK не вышел, вы можете использовать любой HTTP-клиент для работы с API. Смотрите [примеры интеграции](/guides/sdk#пока-sdk-не-вышел).
+### Установка
+
+```bash
+npm install loveandpay-sdk
+```
+
+### Быстрый старт
+
+```typescript
+import { LoveAndPay } from 'loveandpay-sdk';
+
+const client = new LoveAndPay({
+  apiKey: process.env.LOVEANDPAY_API_KEY!,
+});
+
+// Создание счёта
+const invoice = await client.invoices.create({
+  amount: 1500,
+  currency: 'RUB',
+  description: 'Оплата заказа #12345',
+});
+
+console.log(`Ссылка для оплаты: ${invoice.paymentLink}`);
+```
+
+<Card title="Полная документация SDK" icon="book" href="/guides/sdk">
+  Смотрите все методы и примеры использования SDK
+</Card>
 
 <Card title="Нужна помощь?" icon="headset" href="https://loveandpay.io">
   Свяжитесь с нашей командой поддержки в онлайн-чате

@@ -4,45 +4,42 @@ description: 'Официальные SDK для интеграции с Love&Pay
 icon: 'code'
 ---
 
-## Официальные SDK
+## Официальный TypeScript SDK
 
-Мы активно работаем над созданием официальных SDK для упрощения интеграции с Love&Pay API.
-
-<Info>
-  **Скоро:** Официальный SDK на TypeScript уже в разработке и будет доступен в ближайшее время!
-</Info>
-
-## TypeScript SDK (Coming Soon)
-
-<Card title="@loveandpay/sdk" icon="js">
-  Первый официальный SDK будет выпущен для **TypeScript/JavaScript** — самого популярного языка для веб-разработки.
+<Card title="loveandpay-sdk" icon="npm" href="https://www.npmjs.com/package/loveandpay-sdk">
+  Официальный SDK для **TypeScript/JavaScript** — установите через npm, yarn или pnpm.
 </Card>
 
-### Что будет в SDK
+### Установка
 
-<CardGroup cols={2}>
-  <Card title="Типизация" icon="shield-check">
-    Полная типизация TypeScript для безопасной разработки
-  </Card>
-  <Card title="Автодополнение" icon="wand-magic-sparkles">
-    IDE подсказки для всех методов и параметров
-  </Card>
-  <Card title="Обработка ошибок" icon="triangle-exclamation">
-    Встроенная обработка ошибок и retry-логика
-  </Card>
-  <Card title="Валидация" icon="check-double">
-    Проверка параметров перед отправкой запросов
-  </Card>
-</CardGroup>
+<CodeGroup>
 
-### Пример использования (Preview)
+```bash npm
+npm install loveandpay-sdk
+```
+
+```bash yarn
+yarn add loveandpay-sdk
+```
+
+```bash pnpm
+pnpm add loveandpay-sdk
+```
+
+```bash bun
+bun add loveandpay-sdk
+```
+
+</CodeGroup>
+
+### Быстрый старт
 
 ```typescript
-import { LoveAndPay } from '@loveandpay/sdk';
+import { LoveAndPay } from 'loveandpay-sdk';
 
 // Инициализация клиента
 const client = new LoveAndPay({
-  apiKey: process.env.LOVEANDPAY_API_KEY,
+  apiKey: process.env.LOVEANDPAY_API_KEY!,
 });
 
 // Создание счёта
@@ -50,35 +47,290 @@ const invoice = await client.invoices.create({
   amount: 1500,
   currency: 'RUB',
   description: 'Оплата заказа #12345',
+});
+
+console.log(`Ссылка для оплаты: ${invoice.paymentLink}`);
+```
+
+## Возможности SDK
+
+<CardGroup cols={2}>
+  <Card title="Полная типизация" icon="shield-check">
+    TypeScript типы для всех методов и параметров
+  </Card>
+  <Card title="Автодополнение" icon="wand-magic-sparkles">
+    IDE подсказки для быстрой разработки
+  </Card>
+  <Card title="Без зависимостей" icon="feather">
+    Нет внешних зависимостей, только встроенный fetch
+  </Card>
+  <Card title="ESM и CommonJS" icon="code-branch">
+    Поддержка обоих форматов модулей
+  </Card>
+</CardGroup>
+
+## API Reference
+
+### Инициализация
+
+```typescript
+import { LoveAndPay } from 'loveandpay-sdk';
+
+const client = new LoveAndPay({
+  apiKey: 'pk_live_xxx',           // Обязательно
+  baseUrl: 'https://loveandpay.io/api/v1', // Опционально
+  timeout: 30000,                  // Опционально, мс
+});
+```
+
+### Счета (Invoices)
+
+```typescript
+// Создание счёта
+const invoice = await client.invoices.create({
+  amount: 1500,
+  currency: 'RUB',
+  description: 'Оплата заказа',
   customer: {
     email: 'client@example.com',
     name: 'Иван Иванов',
+    phone: '+79991234567',
+  },
+  metadata: {
+    orderId: '12345',
   },
 });
 
-console.log(`Ссылка для оплаты: ${invoice.paymentUrl}`);
+// Получение счёта по ID
+const invoice = await client.invoices.get('invoice-id');
 
 // Получение списка счетов
-const invoices = await client.invoices.list({
+const { data: invoices, pagination } = await client.invoices.list({
   status: 'PAID',
   limit: 10,
 });
 
-// Настройка вебхука
+// Получение QR-кода
+const qr = await client.invoices.getQRCode('invoice-id', {
+  size: 300,
+  format: 'png',
+});
+
+// Отмена счёта
+const cancelled = await client.invoices.cancel('invoice-id', 'Причина отмены');
+```
+
+### Вебхуки (Webhooks)
+
+```typescript
+// Создание вебхука
 const webhook = await client.webhooks.create({
   url: 'https://yoursite.com/webhook',
   events: ['INVOICE_PAID', 'INVOICE_EXPIRED'],
 });
 
-// Верификация подписи вебхука
-const isValid = client.webhooks.verifySignature(
+console.log(`Секрет: ${webhook.secret}`); // Сохраните!
+
+// Список вебхуков
+const { data: webhooks } = await client.webhooks.list();
+
+// Получение вебхука по ID
+const webhook = await client.webhooks.get('webhook-id');
+
+// Удаление вебхука
+await client.webhooks.delete('webhook-id');
+```
+
+#### Верификация подписи вебхука
+
+```typescript
+import express from 'express';
+import { LoveAndPay } from 'loveandpay-sdk';
+
+const app = express();
+const client = new LoveAndPay({ apiKey: 'your-api-key' });
+
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.headers['x-webhook-signature'] as string;
+  const rawBody = req.body.toString();
+
+  // Верификация подписи
+  const isValid = client.webhooks.verifySignature(
+    rawBody,
+    signature,
+    process.env.WEBHOOK_SECRET!
+  );
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  // Парсинг payload
+  const payload = client.webhooks.parsePayload(rawBody);
+
+  switch (payload.event) {
+    case 'INVOICE_PAID':
+      console.log(`Счёт ${payload.data.id} оплачен!`);
+      break;
+    case 'INVOICE_EXPIRED':
+      console.log(`Счёт ${payload.data.id} истёк`);
+      break;
+  }
+
+  res.json({ success: true });
+});
+
+// Или всё в одном шаге с verifyAndParse:
+app.post('/webhook2', express.raw({ type: 'application/json' }), (req, res) => {
+  try {
+    const payload = client.webhooks.verifyAndParse(
+      req.body.toString(),
+      req.headers['x-webhook-signature'] as string,
+      process.env.WEBHOOK_SECRET!
+    );
+
+    // payload уже проверен и распарсен
+    console.log(payload.event, payload.data);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid signature' });
+  }
+});
+```
+
+#### Асинхронная верификация (для браузера)
+
+```typescript
+// Для браузерных окружений без Node.js crypto
+const isValid = await client.webhooks.verifySignatureAsync(
   rawBody,
   signature,
-  webhookSecret
+  secret
 );
 ```
 
-### Поддерживаемые платформы
+### KYC Верификация
+
+```typescript
+// Создание сессии
+const session = await client.kyc.createSession({
+  level: 'basic',
+  redirectUrl: 'https://yoursite.com/kyc-complete',
+  metadata: { userId: 'user-123' },
+});
+
+console.log(`Ссылка для верификации: ${session.verificationUrl}`);
+
+// Проверка статуса
+const status = await client.kyc.getSession('session-id');
+
+if (status.status === 'COMPLETED') {
+  console.log('Верификация пройдена!');
+}
+
+// Список всех сессий
+const { data: sessions, pagination } = await client.kyc.listSessions({
+  limit: 10,
+  status: 'COMPLETED',
+});
+```
+
+### Аналитика
+
+```typescript
+// Аналитика за период
+const analytics = await client.analytics.get({
+  from: '2024-01-01',
+  to: '2024-01-31',
+});
+
+console.log(`Всего счетов: ${analytics.summary.totalInvoices}`);
+console.log(`Оплачено: ${analytics.summary.totalAmount} RUB`);
+console.log(`Конверсия: ${analytics.summary.conversionRate}%`);
+
+// Быстрые методы
+const today = await client.analytics.today();
+const week = await client.analytics.lastWeek();
+const month = await client.analytics.lastMonth();
+```
+
+### Batch операции
+
+```typescript
+// Создание нескольких счетов
+const result = await client.batch.createInvoices([
+  { amount: 1000, description: 'Заказ 1' },
+  { amount: 2000, description: 'Заказ 2' },
+  { amount: 3000, description: 'Заказ 3' },
+]);
+
+console.log(`Успешно: ${result.successful.length}`);
+console.log(`Ошибки: ${result.failed.length}`);
+```
+
+### Identy (AI Валидация подписей)
+
+<Note>
+  Identy API работает на отдельном домене `https://identy.loveandpay.io` и не требует аутентификации.
+</Note>
+
+```typescript
+// Получение категорий
+const categories = await client.identy.getCategories();
+
+// Валидация подписи (Base64)
+const result = await client.identy.validate(imageBase64, 'image/png');
+
+if (result.isValid && result.confidenceScore > 80) {
+  console.log('Подпись подлинная!');
+} else {
+  console.log(`Проблема: ${result.description}`);
+  console.log('Рекомендации:', result.recommendations);
+}
+
+// Валидация файла (Node.js)
+import { readFileSync } from 'fs';
+const file = new Blob([readFileSync('signature.png')]);
+const result = await client.identy.validateFile(file);
+```
+
+## Обработка ошибок
+
+```typescript
+import { LoveAndPay, LoveAndPayError } from 'loveandpay-sdk';
+
+try {
+  const invoice = await client.invoices.get('invalid-id');
+} catch (error) {
+  if (error instanceof LoveAndPayError) {
+    console.log('Код ошибки:', error.statusCode);
+    console.log('Тип:', error.error);
+    console.log('Сообщение:', error.message);
+  }
+}
+```
+
+## Типы
+
+Все типы экспортируются из пакета:
+
+```typescript
+import type {
+  Invoice,
+  InvoiceStatus,
+  CreateInvoiceParams,
+  Webhook,
+  WebhookEvent,
+  WebhookPayload,
+  KYCSession,
+  AnalyticsSummary,
+  SignatureValidationResult,
+  LoveAndPayConfig,
+  LoveAndPayError,
+} from 'loveandpay-sdk';
+```
+
+## Поддерживаемые платформы
 
 | Платформа | Поддержка |
 |-----------|-----------|
@@ -86,13 +338,13 @@ const isValid = client.webhooks.verifySignature(
 | Bun | ✅ |
 | Deno | ✅ |
 | Edge Functions (Vercel, Cloudflare) | ✅ |
-| Браузер | ⚠️ Только публичные методы |
+| Браузер | ⚠️ Только Identy API |
 
 ## Планы по SDK
 
 <Steps>
   <Step title="TypeScript SDK">
-    **Статус:** В разработке 🚧
+    **Статус:** Доступен ✅
 
     Первый официальный SDK с полной типизацией
   </Step>
@@ -113,95 +365,13 @@ const isValid = client.webhooks.verifySignature(
   </Step>
 </Steps>
 
-## Пока SDK не вышел
+## Ссылки
 
-До выхода официального SDK вы можете использовать любой HTTP-клиент:
-
-<CodeGroup>
-
-```typescript TypeScript (fetch)
-const response = await fetch('https://loveandpay.io/api/v1/invoices', {
-  method: 'POST',
-  headers: {
-    'x-api-key': process.env.LOVEANDPAY_API_KEY!,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    amount: 1500,
-    currency: 'RUB',
-  }),
-});
-
-const invoice = await response.json();
-```
-
-```typescript TypeScript (axios)
-import axios from 'axios';
-
-const client = axios.create({
-  baseURL: 'https://loveandpay.io/api/v1',
-  headers: {
-    'x-api-key': process.env.LOVEANDPAY_API_KEY,
-  },
-});
-
-const { data: invoice } = await client.post('/invoices', {
-  amount: 1500,
-  currency: 'RUB',
-});
-```
-
-```python Python (requests)
-import requests
-import os
-
-response = requests.post(
-    'https://loveandpay.io/api/v1/invoices',
-    headers={
-        'x-api-key': os.environ['LOVEANDPAY_API_KEY'],
-        'Content-Type': 'application/json',
-    },
-    json={
-        'amount': 1500,
-        'currency': 'RUB',
-    }
-)
-
-invoice = response.json()
-```
-
-```php PHP (cURL)
-<?php
-
-$ch = curl_init('https://loveandpay.io/api/v1/invoices');
-
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_HTTPHEADER => [
-        'x-api-key: ' . $_ENV['LOVEANDPAY_API_KEY'],
-        'Content-Type: application/json',
-    ],
-    CURLOPT_POSTFIELDS => json_encode([
-        'amount' => 1500,
-        'currency' => 'RUB',
-    ]),
-]);
-
-$response = curl_exec($ch);
-$invoice = json_decode($response, true);
-
-curl_close($ch);
-```
-
-</CodeGroup>
-
-## Хотите узнать первыми?
-
-<Card title="Подпишитесь на обновления" icon="envelope" href="https://loveandpay.io">
-  Оставьте email в личном кабинете и мы сообщим о выходе SDK. Или напишите нам в онлайн-чат на **loveandpay.io**.
-</Card>
-
-<Info>
-  Есть идеи или пожелания по SDK? Напишите нам — мы учтём ваши предложения при разработке!
-</Info>
+<CardGroup cols={2}>
+  <Card title="npm" icon="npm" href="https://www.npmjs.com/package/loveandpay-sdk">
+    Страница пакета на npm
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/loveandpay/sdk">
+    Исходный код и issues
+  </Card>
+</CardGroup>
