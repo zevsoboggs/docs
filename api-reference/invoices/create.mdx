@@ -1,0 +1,166 @@
+---
+title: 'Создание счёта'
+description: 'Создание нового счёта на оплату'
+api: 'POST https://loveandpay.io/api/v1/invoices'
+---
+
+## Создание счёта
+
+Создаёт новый счёт на оплату через СБП.
+
+### Аутентификация
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+### Параметры запроса
+
+<ParamField body="amount" type="number" required>
+  Сумма счёта в указанной валюте
+</ParamField>
+
+<ParamField body="currency" type="string" required>
+  Валюта счёта. Поддерживаемые значения: `USD`, `EUR`, `RUB`, `KZT`
+</ParamField>
+
+<ParamField body="description" type="string">
+  Описание счёта (отображается клиенту)
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Произвольные данные для вашего использования (например, ID заказа)
+</ParamField>
+
+<ParamField body="expiresAt" type="string">
+  Дата истечения счёта в формате ISO 8601. По умолчанию: 24 часа
+</ParamField>
+
+<ParamField body="redirectUrl" type="string">
+  URL для редиректа после успешной оплаты
+</ParamField>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://loveandpay.io/api/v1/invoices" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 100.00,
+    "currency": "USD",
+    "description": "Оплата заказа #12345",
+    "metadata": {
+      "orderId": "12345",
+      "customerEmail": "customer@example.com"
+    },
+    "redirectUrl": "https://yoursite.com/success"
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('https://loveandpay.io/api/v1/invoices', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.LOVEANDPAY_API_KEY,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    amount: 100.00,
+    currency: 'USD',
+    description: 'Оплата заказа #12345',
+    metadata: {
+      orderId: '12345',
+      customerEmail: 'customer@example.com'
+    },
+    redirectUrl: 'https://yoursite.com/success'
+  })
+});
+
+const invoice = await response.json();
+console.log(invoice.paymentUrl); // URL для оплаты
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://loveandpay.io/api/v1/invoices',
+    headers={
+        'x-api-key': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'amount': 100.00,
+        'currency': 'USD',
+        'description': 'Оплата заказа #12345',
+        'metadata': {
+            'orderId': '12345',
+            'customerEmail': 'customer@example.com'
+        },
+        'redirectUrl': 'https://yoursite.com/success'
+    }
+)
+
+invoice = response.json()
+print(invoice['paymentUrl'])  # URL для оплаты
+```
+
+</CodeGroup>
+
+### Пример ответа
+
+<ResponseField name="id" type="string">
+  Уникальный идентификатор счёта
+</ResponseField>
+
+<ResponseField name="amount" type="number">
+  Сумма счёта
+</ResponseField>
+
+<ResponseField name="currency" type="string">
+  Валюта счёта
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Статус счёта: `pending`, `paid`, `expired`, `cancelled`
+</ResponseField>
+
+<ResponseField name="paymentUrl" type="string">
+  URL страницы оплаты для клиента
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  Дата создания в формате ISO 8601
+</ResponseField>
+
+<ResponseField name="expiresAt" type="string">
+  Дата истечения в формате ISO 8601
+</ResponseField>
+
+```json Успешный ответ (201)
+{
+  "id": "inv_abc123def456",
+  "amount": 100.00,
+  "currency": "USD",
+  "description": "Оплата заказа #12345",
+  "status": "pending",
+  "paymentUrl": "https://pay.loveandpay.io/inv_abc123def456",
+  "metadata": {
+    "orderId": "12345",
+    "customerEmail": "customer@example.com"
+  },
+  "createdAt": "2024-01-15T10:30:00Z",
+  "expiresAt": "2024-01-16T10:30:00Z"
+}
+```
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 400 | Неверные параметры запроса |
+| 401 | Неверный API ключ |
+| 422 | Валидация не пройдена |

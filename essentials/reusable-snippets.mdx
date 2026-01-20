@@ -1,0 +1,109 @@
+---
+title: "Переиспользуемые сниппеты"
+description: "Переиспользуемые пользовательские сниппеты для синхронизации контента"
+icon: "recycle"
+---
+
+import SnippetIntro from '/snippets/snippet-intro.mdx';
+
+<SnippetIntro />
+
+## Создание пользовательского сниппета
+
+**Предварительное условие**: Вы должны создать файл сниппета в директории `snippets`.
+
+<Note>
+  Любая страница в директории `snippets` будет считаться сниппетом и не будет
+  отображаться как отдельная страница. Если вы хотите создать отдельную страницу
+  из сниппета, импортируйте его в другой файл и вызовите как компонент.
+</Note>
+
+### Экспорт по умолчанию
+
+1. Добавьте контент в файл сниппета, который хотите переиспользовать в
+   нескольких местах. Опционально можно добавить переменные, которые будут
+   заполняться через props при импорте сниппета.
+
+```mdx snippets/my-snippet.mdx
+Hello world! Это мой контент для переиспользования на страницах. Моё ключевое
+слово дня — {word}.
+```
+
+<Warning>
+  Контент для переиспользования должен находиться в директории `snippets`,
+  чтобы импорт работал.
+</Warning>
+
+2. Импортируйте сниппет в целевой файл.
+
+```mdx destination-file.mdx
+---
+title: Мой заголовок
+description: Моё описание
+---
+
+import MySnippet from '/snippets/path/to/my-snippet.mdx';
+
+## Заголовок
+
+Lorem impsum dolor sit amet.
+
+<MySnippet word="бананы" />
+```
+
+### Переиспользуемые переменные
+
+1. Экспортируйте переменную из файла сниппета:
+
+```mdx snippets/path/to/custom-variables.mdx
+export const myName = 'моё имя';
+
+export const myObject = { fruit: 'клубника' };
+```
+
+2. Импортируйте сниппет в целевой файл и используйте переменную:
+
+```mdx destination-file.mdx
+---
+title: Мой заголовок
+description: Моё описание
+---
+
+import { myName, myObject } from '/snippets/path/to/custom-variables.mdx';
+
+Привет, меня зовут {myName} и я люблю {myObject.fruit}.
+```
+
+### Переиспользуемые компоненты
+
+1. Внутри файла сниппета создайте компонент, принимающий props, экспортировав
+   его в виде стрелочной функции.
+
+```mdx snippets/custom-component.mdx
+export const MyComponent = ({ title }) => (
+  <div>
+    <h1>{title}</h1>
+    <p>... контент сниппета ...</p>
+  </div>
+);
+```
+
+<Warning>
+  MDX не компилируется внутри тела стрелочной функции. Используйте HTML
+  синтаксис когда возможно или используйте экспорт по умолчанию если нужен MDX.
+</Warning>
+
+2. Импортируйте сниппет в целевой файл и передайте props
+
+```mdx destination-file.mdx
+---
+title: Мой заголовок
+description: Моё описание
+---
+
+import { MyComponent } from '/snippets/custom-component.mdx';
+
+Lorem ipsum dolor sit amet.
+
+<MyComponent title={'Пользовательский заголовок'} />
+```

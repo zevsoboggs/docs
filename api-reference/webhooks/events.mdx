@@ -1,0 +1,350 @@
+---
+title: 'События вебхуков'
+description: 'Описание всех событий и формата payload'
+---
+
+## События вебхуков
+
+Love&Pay отправляет уведомления о различных событиях на ваш webhook URL в реальном времени.
+
+## Формат уведомления
+
+Все вебхуки отправляются методом POST с JSON payload:
+
+```json
+{
+  "id": "evt_1234567890_abc123",
+  "event": "invoice.paid",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "data": {
+    "id": "uuid-v4",
+    "invoiceNumber": "INV-12345",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "PAID",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "paidAt": "2024-01-15T10:30:00.000Z",
+    "createdAt": "2024-01-15T10:00:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+<Warning>
+  **Важно:** ID счета передается в поле `data.id`, не `data.invoiceId`
+</Warning>
+
+### Заголовки запроса
+
+| Заголовок | Описание |
+|-----------|----------|
+| `Content-Type` | `application/json` |
+| `x-webhook-signature` | Подпись в формате `sha256=xxx` |
+| `x-webhook-id` | Уникальный ID вебхука |
+| `x-webhook-timestamp` | Unix timestamp отправки (миллисекунды) |
+| `User-Agent` | `LovePay/1.0` |
+
+## Доступные события
+
+<CardGroup cols={2}>
+  <Card title="События счетов" icon="file-invoice">
+    - `INVOICE_CREATED` — Счёт создан
+    - `INVOICE_UPDATED` — Данные счёта обновлены
+    - `INVOICE_PAID` — Счёт оплачен успешно
+    - `INVOICE_CANCELLED` — Счёт отменён
+    - `INVOICE_EXPIRED` — Истёк срок действия счёта
+  </Card>
+  <Card title="События транзакций" icon="money-bill-transfer">
+    - `TRANSACTION_CREATED` — Создана транзакция
+    - `TRANSACTION_COMPLETED` — Транзакция завершена успешно
+    - `TRANSACTION_FAILED` — Транзакция не прошла
+  </Card>
+</CardGroup>
+
+## События счетов
+
+### INVOICE_CREATED
+
+Отправляется при создании нового счёта.
+
+```json
+{
+  "id": "evt_1234567890_abc123",
+  "event": "INVOICE_CREATED",
+  "timestamp": "2024-01-15T10:00:00.000Z",
+  "data": {
+    "id": "uuid-v4",
+    "invoiceNumber": "INV-12345",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "PENDING",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "createdAt": "2024-01-15T10:00:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### INVOICE_UPDATED
+
+Отправляется при обновлении данных счёта.
+
+```json
+{
+  "id": "evt_1234567890_def456",
+  "event": "INVOICE_UPDATED",
+  "timestamp": "2024-01-15T10:15:00.000Z",
+  "data": {
+    "id": "uuid-v4",
+    "invoiceNumber": "INV-12345",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "PENDING",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "updatedAt": "2024-01-15T10:15:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### INVOICE_PAID
+
+Отправляется при успешной оплате счёта. **Это основное событие для подтверждения оплаты.**
+
+```json
+{
+  "id": "evt_1234567890_ghi789",
+  "event": "INVOICE_PAID",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "data": {
+    "id": "uuid-v4",
+    "invoiceNumber": "INV-12345",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "PAID",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "paidAt": "2024-01-15T10:30:00.000Z",
+    "createdAt": "2024-01-15T10:00:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### INVOICE_EXPIRED
+
+Отправляется когда срок оплаты счёта истёк.
+
+```json
+{
+  "id": "evt_1234567890_jkl012",
+  "event": "INVOICE_EXPIRED",
+  "timestamp": "2024-01-15T11:00:00.000Z",
+  "data": {
+    "id": "uuid-v4",
+    "invoiceNumber": "INV-12345",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "EXPIRED",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "expiredAt": "2024-01-15T11:00:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### INVOICE_CANCELLED
+
+Отправляется при отмене счёта.
+
+```json
+{
+  "id": "evt_1234567890_mno345",
+  "event": "INVOICE_CANCELLED",
+  "timestamp": "2024-01-15T10:45:00.000Z",
+  "data": {
+    "id": "uuid-v4",
+    "invoiceNumber": "INV-12345",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "CANCELLED",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "cancelledAt": "2024-01-15T10:45:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+## События транзакций
+
+### TRANSACTION_CREATED
+
+Отправляется при создании новой транзакции.
+
+```json
+{
+  "id": "evt_1234567890_pqr678",
+  "event": "TRANSACTION_CREATED",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "data": {
+    "id": "transaction-uuid",
+    "invoiceId": "invoice-uuid",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "PENDING",
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### TRANSACTION_COMPLETED
+
+Отправляется при успешном завершении транзакции.
+
+```json
+{
+  "id": "evt_1234567890_stu901",
+  "event": "TRANSACTION_COMPLETED",
+  "timestamp": "2024-01-15T10:30:05.000Z",
+  "data": {
+    "id": "transaction-uuid",
+    "invoiceId": "invoice-uuid",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "COMPLETED",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "completedAt": "2024-01-15T10:30:05.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### TRANSACTION_FAILED
+
+Отправляется когда транзакция не прошла.
+
+```json
+{
+  "id": "evt_1234567890_vwx234",
+  "event": "TRANSACTION_FAILED",
+  "timestamp": "2024-01-15T10:30:05.000Z",
+  "data": {
+    "id": "transaction-uuid",
+    "invoiceId": "invoice-uuid",
+    "amount": 150000,
+    "currency": "RUB",
+    "status": "FAILED",
+    "failureReason": "Недостаточно средств",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "failedAt": "2024-01-15T10:30:05.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+
+## События KYC
+
+### KYC_COMPLETED
+
+Отправляется при успешном прохождении KYC верификации.
+
+```json
+{
+  "id": "evt_1234567890_kyc001",
+  "event": "KYC_COMPLETED",
+  "timestamp": "2024-01-15T14:00:00.000Z",
+  "data": {
+    "sessionId": "kyc_abc123",
+    "status": "COMPLETED",
+    "level": "basic",
+    "metadata": {
+      "userId": "user_123"
+    },
+    "completedAt": "2024-01-15T14:00:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+### KYC_FAILED
+
+Отправляется при неудачной KYC верификации.
+
+```json
+{
+  "id": "evt_1234567890_kyc002",
+  "event": "KYC_FAILED",
+  "timestamp": "2024-01-15T14:00:00.000Z",
+  "data": {
+    "sessionId": "kyc_abc123",
+    "status": "FAILED",
+    "level": "basic",
+    "failureReason": "document_expired",
+    "metadata": {
+      "userId": "user_123"
+    },
+    "failedAt": "2024-01-15T14:00:00.000Z"
+  },
+  "partnerId": "partner-uuid",
+  "retryCount": 0
+}
+```
+
+## Обработка вебхуков
+
+### Требования к ответу
+
+<CardGroup cols={2}>
+  <Card title="HTTP 200-299" icon="check">
+    Ваш сервер должен вернуть код 200-299 для подтверждения получения
+  </Card>
+  <Card title="Таймаут 30 секунд" icon="clock">
+    Ответ должен быть получен в течение 30 секунд
+  </Card>
+  <Card title="Идемпотентность" icon="repeat">
+    Обрабатывайте события идемпотентно — они могут приходить повторно
+  </Card>
+  <Card title="Верификация" icon="shield">
+    Всегда проверяйте подпись `x-webhook-signature`
+  </Card>
+</CardGroup>
+
+### Повторные попытки
+
+При неудачной доставке (таймаут или код ≥400) Love&Pay автоматически повторяет отправку до 5 раз:
+
+| Попытка | Задержка |
+|---------|----------|
+| 1 | 1 минута |
+| 2 | 5 минут |
+| 3 | 30 минут |
+| 4 | 2 часа |
+| 5 | 12 часов |
+
+<Info>
+  Количество повторных попыток отображается в поле `retryCount` в payload вебхука.
+</Info>

@@ -1,0 +1,189 @@
+---
+title: 'Валидация подписи (Base64)'
+description: 'Анализ подписи из Base64-закодированного изображения'
+api: 'POST https://identy.loveandpay.io/api/Signature/validate'
+---
+
+## Валидация подписи
+
+Анализирует изображение подписи, переданное в формате Base64, и возвращает результат AI-валидации.
+
+<Info>
+  Это открытый эндпоинт — аутентификация не требуется.
+</Info>
+
+### Параметры запроса
+
+<ParamField body="imageBase64" type="string" required>
+  Изображение подписи, закодированное в Base64
+</ParamField>
+
+<ParamField body="mimeType" type="string" default="image/png">
+  MIME-тип изображения. Поддерживаемые значения:
+  - `image/png`
+  - `image/jpeg`
+  - `image/gif`
+  - `image/webp`
+</ParamField>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://identy.loveandpay.io/api/Signature/validate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageBase64": "/9j/4AAQSkZJRgABAQEASABIAAD/4gHY...",
+    "mimeType": "image/jpeg"
+  }'
+```
+
+```javascript Node.js
+const fs = require('fs');
+
+// Читаем файл и конвертируем в Base64
+const imageBuffer = fs.readFileSync('signature.png');
+const imageBase64 = imageBuffer.toString('base64');
+
+const response = await fetch('https://identy.loveandpay.io/api/Signature/validate', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    imageBase64: imageBase64,
+    mimeType: 'image/png'
+  })
+});
+
+const result = await response.json();
+
+if (result.isValid) {
+  console.log(`Подпись подлинная! Уверенность: ${result.confidenceScore}%`);
+} else {
+  console.log(`Подпись недействительна: ${result.description}`);
+  console.log('Проблемы:', result.issues);
+}
+```
+
+```python Python
+import requests
+import base64
+
+# Читаем файл и конвертируем в Base64
+with open('signature.png', 'rb') as f:
+    image_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+response = requests.post(
+    'https://identy.loveandpay.io/api/Signature/validate',
+    json={
+        'imageBase64': image_base64,
+        'mimeType': 'image/png'
+    }
+)
+
+result = response.json()
+
+if result['isValid']:
+    print(f"Подпись подлинная! Уверенность: {result['confidenceScore']}%")
+else:
+    print(f"Подпись недействительна: {result['description']}")
+    print('Проблемы:', result['issues'])
+```
+
+```csharp C#
+using System.Net.Http.Json;
+
+var imageBytes = File.ReadAllBytes("signature.png");
+var imageBase64 = Convert.ToBase64String(imageBytes);
+
+var client = new HttpClient();
+var response = await client.PostAsJsonAsync(
+    "https://identy.loveandpay.io/api/Signature/validate",
+    new {
+        imageBase64 = imageBase64,
+        mimeType = "image/png"
+    }
+);
+
+var result = await response.Content.ReadFromJsonAsync<SignatureValidationResponse>();
+Console.WriteLine($"Валидна: {result.IsValid}, Уверенность: {result.ConfidenceScore}%");
+```
+
+</CodeGroup>
+
+### Пример ответа
+
+<ResponseField name="isValid" type="boolean">
+  Результат валидации: `true` — подпись подлинная, `false` — недействительная
+</ResponseField>
+
+<ResponseField name="confidenceScore" type="integer">
+  Оценка уверенности AI от 0 до 100
+</ResponseField>
+
+<ResponseField name="category" type="integer">
+  Числовой код категории подписи (0-8)
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Текстовое описание результата анализа
+</ResponseField>
+
+<ResponseField name="issues" type="array">
+  Массив обнаруженных проблем
+</ResponseField>
+
+<ResponseField name="recommendations" type="array">
+  Массив рекомендаций для пользователя
+</ResponseField>
+
+```json Успешный ответ (200)
+{
+  "isValid": true,
+  "confidenceScore": 92,
+  "category": 1,
+  "description": "Подпись распознана как подлинная рукописная подпись с высокой степенью уверенности",
+  "issues": [],
+  "recommendations": []
+}
+```
+
+```json Недействительная подпись (200)
+{
+  "isValid": false,
+  "confidenceScore": 78,
+  "category": 3,
+  "description": "Изображение содержит неразборчивые каракули вместо подписи",
+  "issues": [
+    "Отсутствует характерная структура подписи",
+    "Линии хаотичны и не образуют узнаваемый паттерн"
+  ],
+  "recommendations": [
+    "Попросите подписанта поставить чёткую подпись",
+    "Убедитесь что подпись выполнена на чистом фоне"
+  ]
+}
+```
+
+### Категории
+
+| Код | Название | Описание |
+|-----|----------|----------|
+| 0 | Unknown | Не удалось классифицировать |
+| 1 | ValidSignature | Подлинная подпись |
+| 2 | InvalidSignature | Недействительная подпись |
+| 3 | Scribble | Каракули |
+| 4 | PrintedText | Печатный текст |
+| 5 | Drawing | Рисунок |
+| 6 | BlankOrEmpty | Пустое изображение |
+| 7 | LowQuality | Низкое качество |
+| 8 | PartialSignature | Частичная подпись |
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 400 | Неверный формат запроса или Base64 |
+| 500 | Внутренняя ошибка сервера |

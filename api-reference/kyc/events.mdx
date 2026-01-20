@@ -1,0 +1,225 @@
+---
+title: 'KYC события'
+description: 'Вебхуки для отслеживания результатов верификации'
+---
+
+## KYC события
+
+Love&Pay отправляет вебхуки о результатах KYC верификации.
+
+## Доступные события
+
+| Событие | Описание |
+|---------|----------|
+| `kyc.completed` | Верификация успешно завершена |
+| `kyc.failed` | Верификация не пройдена |
+
+## kyc.completed
+
+Отправляется при успешном прохождении KYC верификации.
+
+```json
+{
+  "id": "evt_kyc001",
+  "type": "kyc.completed",
+  "createdAt": "2024-01-15T14:00:00Z",
+  "data": {
+    "session": {
+      "id": "kyc_abc123def456",
+      "level": "basic",
+      "status": "completed",
+      "verifiedData": {
+        "firstName": "Иван",
+        "lastName": "Петров",
+        "dateOfBirth": "1990-05-15",
+        "nationality": "RU",
+        "documentType": "passport",
+        "documentNumber": "****5678"
+      },
+      "metadata": {
+        "userId": "user_12345",
+        "email": "user@example.com"
+      },
+      "createdAt": "2024-01-15T10:30:00Z",
+      "completedAt": "2024-01-15T14:00:00Z"
+    }
+  }
+}
+```
+
+## kyc.failed
+
+Отправляется при неудачной KYC верификации.
+
+```json
+{
+  "id": "evt_kyc002",
+  "type": "kyc.failed",
+  "createdAt": "2024-01-15T14:00:00Z",
+  "data": {
+    "session": {
+      "id": "kyc_abc123def456",
+      "level": "basic",
+      "status": "failed",
+      "failureReason": "document_expired",
+      "failureDetails": "Срок действия документа истёк. Пожалуйста, используйте действующий документ.",
+      "metadata": {
+        "userId": "user_12345",
+        "email": "user@example.com"
+      },
+      "createdAt": "2024-01-15T10:30:00Z",
+      "failedAt": "2024-01-15T14:00:00Z"
+    }
+  }
+}
+```
+
+## Обработка KYC событий
+
+<CodeGroup>
+
+```javascript Node.js
+app.post('/webhooks/loveandpay', (req, res) => {
+  // Верификация подписи (см. раздел Верификация подписи)
+
+  const event = req.body;
+
+  switch (event.type) {
+    case 'kyc.completed':
+      handleKycCompleted(event.data.session);
+      break;
+    case 'kyc.failed':
+      handleKycFailed(event.data.session);
+      break;
+  }
+
+  res.status(200).json({ received: true });
+});
+
+async function handleKycCompleted(session) {
+  const userId = session.metadata.userId;
+
+  // Обновляем статус пользователя в базе
+  await db.users.update({
+    where: { id: userId },
+    data: {
+      kycStatus: 'verified',
+      kycLevel: session.level,
+      kycVerifiedAt: session.completedAt,
+      // Сохраняем верифицированные данные
+      firstName: session.verifiedData.firstName,
+      lastName: session.verifiedData.lastName,
+      dateOfBirth: session.verifiedData.dateOfBirth
+    }
+  });
+
+  // Отправляем уведомление пользователю
+  await sendEmail(session.metadata.email, 'kyc-success', {
+    firstName: session.verifiedData.firstName
+  });
+
+  console.log(`KYC пройден для пользователя ${userId}`);
+}
+
+async function handleKycFailed(session) {
+  const userId = session.metadata.userId;
+
+  // Обновляем статус
+  await db.users.update({
+    where: { id: userId },
+    data: {
+      kycStatus: 'failed',
+      kycFailureReason: session.failureReason
+    }
+  });
+
+  // Уведомляем пользователя о необходимости повторной верификации
+  await sendEmail(session.metadata.email, 'kyc-failed', {
+    reason: session.failureDetails
+  });
+
+  console.log(`KYC не пройден для пользователя ${userId}: ${session.failureReason}`);
+}
+```
+
+```python Python
+@app.route('/webhooks/loveandpay', methods=['POST'])
+def handle_webhook():
+    # Верификация подписи (см. раздел Верификация подписи)
+
+    event = request.json
+
+    if event['type'] == 'kyc.completed':
+        handle_kyc_completed(event['data']['session'])
+    elif event['type'] == 'kyc.failed':
+        handle_kyc_failed(event['data']['session'])
+
+    return jsonify({'received': True}), 200
+
+def handle_kyc_completed(session):
+    user_id = session['metadata']['userId']
+
+    # Обновляем статус пользователя в базе
+    user = User.query.get(user_id)
+    user.kyc_status = 'verified'
+    user.kyc_level = session['level']
+    user.kyc_verified_at = session['completedAt']
+    user.first_name = session['verifiedData']['firstName']
+    user.last_name = session['verifiedData']['lastName']
+    db.session.commit()
+
+    # Отправляем уведомление
+    send_email(
+        session['metadata']['email'],
+        'kyc-success',
+        {'firstName': session['verifiedData']['firstName']}
+    )
+
+    print(f"KYC пройден для пользователя {user_id}")
+
+def handle_kyc_failed(session):
+    user_id = session['metadata']['userId']
+
+    user = User.query.get(user_id)
+    user.kyc_status = 'failed'
+    user.kyc_failure_reason = session['failureReason']
+    db.session.commit()
+
+    send_email(
+        session['metadata']['email'],
+        'kyc-failed',
+        {'reason': session['failureDetails']}
+    )
+
+    print(f"KYC не пройден для {user_id}: {session['failureReason']}")
+```
+
+</CodeGroup>
+
+## Рекомендации
+
+<CardGroup cols={2}>
+  <Card title="Используйте metadata" icon="tag">
+    Передавайте userId и другие идентификаторы в metadata для связи с вашей системой
+  </Card>
+  <Card title="Обрабатывайте оба события" icon="code-branch">
+    Всегда обрабатывайте как успешные, так и неудачные верификации
+  </Card>
+  <Card title="Уведомляйте пользователей" icon="bell">
+    Информируйте пользователей о результате верификации по email
+  </Card>
+  <Card title="Предлагайте повтор" icon="rotate">
+    При неудаче предложите пользователю пройти верификацию повторно
+  </Card>
+</CardGroup>
+
+## Причины отказа
+
+| Код | Описание | Рекомендация пользователю |
+|-----|----------|---------------------------|
+| `document_expired` | Документ просрочен | Используйте действующий документ |
+| `document_unreadable` | Плохое качество фото | Сделайте чёткое фото при хорошем освещении |
+| `document_mismatch` | Данные не совпадают | Проверьте правильность введённых данных |
+| `selfie_mismatch` | Лицо не распознано | Снимите очки, головной убор, обеспечьте хорошее освещение |
+| `suspected_fraud` | Подозрение на мошенничество | Свяжитесь со службой поддержки |
+| `unsupported_document` | Тип документа не поддерживается | Используйте паспорт или ID-карту |

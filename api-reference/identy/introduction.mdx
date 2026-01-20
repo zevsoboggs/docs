@@ -1,0 +1,99 @@
+---
+title: 'Identy — AI Валидация подписей'
+description: 'Анализ и проверка подписей с помощью искусственного интеллекта'
+---
+
+## Что такое Identy?
+
+Identy — это сервис валидации подписей на основе искусственного интеллекта. Он анализирует изображения подписей и определяет их подлинность.
+
+<CardGroup cols={2}>
+  <Card title="Валидация Base64" icon="code" href="/api-reference/identy/validate">
+    Отправьте изображение в формате Base64 для анализа
+  </Card>
+  <Card title="Загрузка файла" icon="upload" href="/api-reference/identy/upload">
+    Загрузите файл изображения напрямую
+  </Card>
+  <Card title="Категории" icon="tags" href="/api-reference/identy/categories">
+    Получите список всех категорий классификации
+  </Card>
+</CardGroup>
+
+## Базовый URL
+
+```
+https://identy.loveandpay.io
+```
+
+## Особенности
+
+<CardGroup cols={2}>
+  <Card title="AI-анализ" icon="brain">
+    Нейросеть анализирует изображение и определяет подлинность подписи
+  </Card>
+  <Card title="Оценка уверенности" icon="chart-simple">
+    Каждый результат содержит confidenceScore от 0 до 100
+  </Card>
+  <Card title="Детальный отчёт" icon="file-lines">
+    Получайте описание проблем и рекомендации
+  </Card>
+  <Card title="Открытый API" icon="lock-open">
+    Эндпоинты доступны без аутентификации
+  </Card>
+</CardGroup>
+
+## Поддерживаемые форматы
+
+| Формат | MIME-тип |
+|--------|----------|
+| PNG | `image/png` |
+| JPEG | `image/jpeg` |
+| GIF | `image/gif` |
+| WebP | `image/webp` |
+
+<Note>
+  Максимальный размер файла: **10 MB**
+</Note>
+
+## Категории подписей
+
+AI классифицирует подписи по следующим категориям:
+
+| Код | Категория | Описание |
+|-----|-----------|----------|
+| 0 | `Unknown` | Не удалось классифицировать |
+| 1 | `ValidSignature` | Подлинная подпись |
+| 2 | `InvalidSignature` | Недействительная подпись |
+| 3 | `Scribble` | Каракули, неразборчиво |
+| 4 | `PrintedText` | Печатный текст вместо подписи |
+| 5 | `Drawing` | Рисунок |
+| 6 | `BlankOrEmpty` | Пустое изображение |
+| 7 | `LowQuality` | Низкое качество изображения |
+| 8 | `PartialSignature` | Частичная/обрезанная подпись |
+
+## Быстрый старт
+
+<Steps>
+  <Step title="Подготовьте изображение">
+    Сделайте фото или скан подписи в формате PNG/JPEG
+  </Step>
+  <Step title="Отправьте на валидацию">
+    Используйте эндпоинт `/api/Signature/validate/upload` для загрузки файла
+  </Step>
+  <Step title="Получите результат">
+    AI вернёт оценку подлинности, категорию и рекомендации
+  </Step>
+</Steps>
+
+## Пример ответа
+
+```json
+{
+  "isValid": true,
+  "confidenceScore": 87,
+  "category": 1,
+  "description": "Подпись распознана как подлинная с высокой степенью уверенности",
+  "issues": [],
+  "recommendations": []
+}
+```

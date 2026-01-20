@@ -1,0 +1,153 @@
+---
+title: 'Получение счёта'
+description: 'Получение информации о конкретном счёте по ID'
+api: 'GET https://loveandpay.io/api/v1/invoices/{id}'
+---
+
+## Получение счёта по ID
+
+Возвращает полную информацию о счёте по его уникальному идентификатору.
+
+### Аутентификация
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+### Path параметры
+
+<ParamField path="id" type="string" required>
+  Уникальный идентификатор счёта (например: `inv_abc123def456`)
+</ParamField>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v1/invoices/inv_abc123def456" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+```javascript Node.js
+const invoiceId = 'inv_abc123def456';
+
+const response = await fetch(
+  `https://loveandpay.io/api/v1/invoices/${invoiceId}`,
+  {
+    headers: {
+      'x-api-key': process.env.LOVEANDPAY_API_KEY
+    }
+  }
+);
+
+const invoice = await response.json();
+console.log(invoice.status);
+```
+
+```python Python
+import requests
+
+invoice_id = 'inv_abc123def456'
+
+response = requests.get(
+    f'https://loveandpay.io/api/v1/invoices/{invoice_id}',
+    headers={'x-api-key': 'YOUR_API_KEY'}
+)
+
+invoice = response.json()
+print(invoice['status'])
+```
+
+</CodeGroup>
+
+### Пример ответа
+
+<ResponseField name="id" type="string">
+  Уникальный идентификатор счёта
+</ResponseField>
+
+<ResponseField name="amount" type="number">
+  Сумма счёта
+</ResponseField>
+
+<ResponseField name="currency" type="string">
+  Валюта счёта
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Статус счёта: `pending`, `paid`, `expired`, `cancelled`
+</ResponseField>
+
+<ResponseField name="paymentUrl" type="string">
+  URL страницы оплаты
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Описание счёта
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Произвольные данные, переданные при создании
+</ResponseField>
+
+<ResponseField name="qrCodeUrl" type="string">
+  URL QR-кода для оплаты через СБП
+</ResponseField>
+
+<ResponseField name="sbpTransactionId" type="string">
+  ID транзакции в системе СБП (появляется после оплаты)
+</ResponseField>
+
+<ResponseField name="payerBank" type="string">
+  Название банка плательщика (появляется после оплаты)
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  Дата создания в формате ISO 8601
+</ResponseField>
+
+<ResponseField name="expiresAt" type="string">
+  Дата истечения в формате ISO 8601
+</ResponseField>
+
+<ResponseField name="paidAt" type="string">
+  Дата оплаты в формате ISO 8601 (только для оплаченных счетов)
+</ResponseField>
+
+```json Успешный ответ (200)
+{
+  "id": "inv_abc123def456",
+  "amount": 1500.00,
+  "currency": "RUB",
+  "description": "Оплата заказа #12345",
+  "status": "paid",
+  "paymentUrl": "https://pay.loveandpay.io/inv_abc123def456",
+  "metadata": {
+    "orderId": "12345",
+    "customerEmail": "customer@example.com"
+  },
+  "qrCodeUrl": "https://pay.loveandpay.io/qr/inv_abc123def456",
+  "sbpTransactionId": "SBP1234567890",
+  "payerBank": "Сбербанк",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "expiresAt": "2024-01-16T10:30:00Z",
+  "paidAt": "2024-01-15T10:35:00Z"
+}
+```
+
+### Статусы счёта
+
+| Статус | Описание |
+|--------|----------|
+| `pending` | Ожидает оплаты |
+| `paid` | Успешно оплачен |
+| `expired` | Истёк срок оплаты |
+| `cancelled` | Отменён |
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 401 | Неверный API ключ |
+| 404 | Счёт не найден |

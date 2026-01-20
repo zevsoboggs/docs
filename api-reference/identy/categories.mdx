@@ -1,0 +1,182 @@
+---
+title: 'Категории подписей'
+description: 'Получение списка всех категорий классификации'
+api: 'GET https://identy.loveandpay.io/api/Signature/categories'
+---
+
+## Получение категорий
+
+Возвращает список всех доступных категорий для классификации подписей.
+
+<Info>
+  Это открытый эндпоинт — аутентификация не требуется.
+</Info>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://identy.loveandpay.io/api/Signature/categories"
+```
+
+```javascript Node.js
+const response = await fetch('https://identy.loveandpay.io/api/Signature/categories');
+const categories = await response.json();
+
+categories.forEach(cat => {
+  console.log(`${cat.id}: ${cat.name} - ${cat.description}`);
+});
+```
+
+```python Python
+import requests
+
+response = requests.get('https://identy.loveandpay.io/api/Signature/categories')
+categories = response.json()
+
+for cat in categories:
+    print(f"{cat['id']}: {cat['name']} - {cat['description']}")
+```
+
+</CodeGroup>
+
+### Пример ответа
+
+<ResponseField name="id" type="integer">
+  Числовой идентификатор категории
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Название категории на английском
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Описание категории
+</ResponseField>
+
+```json Успешный ответ (200)
+[
+  {
+    "id": 0,
+    "name": "Unknown",
+    "description": "Не удалось определить тип изображения"
+  },
+  {
+    "id": 1,
+    "name": "ValidSignature",
+    "description": "Подлинная рукописная подпись"
+  },
+  {
+    "id": 2,
+    "name": "InvalidSignature",
+    "description": "Недействительная или поддельная подпись"
+  },
+  {
+    "id": 3,
+    "name": "Scribble",
+    "description": "Каракули или неразборчивые линии"
+  },
+  {
+    "id": 4,
+    "name": "PrintedText",
+    "description": "Печатный текст вместо рукописной подписи"
+  },
+  {
+    "id": 5,
+    "name": "Drawing",
+    "description": "Рисунок или изображение"
+  },
+  {
+    "id": 6,
+    "name": "BlankOrEmpty",
+    "description": "Пустое или почти пустое изображение"
+  },
+  {
+    "id": 7,
+    "name": "LowQuality",
+    "description": "Изображение слишком низкого качества для анализа"
+  },
+  {
+    "id": 8,
+    "name": "PartialSignature",
+    "description": "Частичная или обрезанная подпись"
+  }
+]
+```
+
+## Описание категорий
+
+### ValidSignature (1)
+Изображение содержит подлинную рукописную подпись с характерными признаками:
+- Плавные линии
+- Уникальный узнаваемый паттерн
+- Естественные вариации нажима
+
+### InvalidSignature (2)
+Подпись определена как недействительная:
+- Явные признаки подделки
+- Неестественные линии
+- Следы копирования или обводки
+
+### Scribble (3)
+Изображение содержит хаотичные линии без структуры подписи:
+- Случайные штрихи
+- Отсутствие узнаваемого паттерна
+
+### PrintedText (4)
+Вместо рукописной подписи обнаружен печатный текст:
+- Шрифтовые символы
+- Напечатанное имя
+
+### Drawing (5)
+Изображение содержит рисунок:
+- Смайлики
+- Простые фигуры
+- Художественные элементы
+
+### BlankOrEmpty (6)
+Изображение пустое или содержит только фон:
+- Белый/цветной фон без содержимого
+- Слишком мало визуальной информации
+
+### LowQuality (7)
+Качество изображения недостаточно для анализа:
+- Размытие
+- Низкое разрешение
+- Артефакты сжатия
+
+### PartialSignature (8)
+Подпись обрезана или видна не полностью:
+- Часть подписи за пределами кадра
+- Неполное сканирование
+
+## Использование в коде
+
+```javascript
+const CATEGORY_NAMES = {
+  0: 'Неизвестно',
+  1: 'Подлинная подпись',
+  2: 'Недействительная подпись',
+  3: 'Каракули',
+  4: 'Печатный текст',
+  5: 'Рисунок',
+  6: 'Пустое изображение',
+  7: 'Низкое качество',
+  8: 'Частичная подпись'
+};
+
+function getCategoryName(categoryId) {
+  return CATEGORY_NAMES[categoryId] || 'Неизвестно';
+}
+
+// Использование
+const result = await validateSignature(image);
+console.log(`Категория: ${getCategoryName(result.category)}`);
+```
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 500 | Внутренняя ошибка сервера |

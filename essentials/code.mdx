@@ -1,0 +1,35 @@
+---
+title: 'Блоки кода'
+description: 'Отображение инлайн кода и блоков кода'
+icon: 'code'
+---
+
+## Инлайн код
+
+Чтобы обозначить `слово` или `фразу` как код, заключите их в обратные кавычки (`).
+
+```
+Чтобы обозначить `слово` или `фразу` как код, заключите их в обратные кавычки (`).
+```
+
+## Блоки кода
+
+Используйте [огороженные блоки кода](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks), заключая код в три обратные кавычки. Укажите язык программирования после открывающих кавычек для подсветки синтаксиса. Опционально можно также написать название файла после языка программирования.
+
+```java HelloWorld.java
+class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}
+```
+
+````md
+```java HelloWorld.java
+class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}
+```
+````

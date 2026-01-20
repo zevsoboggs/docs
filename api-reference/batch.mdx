@@ -1,0 +1,272 @@
+---
+title: 'Batch операции'
+description: 'Массовое создание счетов через CSV файл'
+api: 'POST https://loveandpay.io/api/v1/batch/invoices'
+---
+
+## Массовое создание счетов
+
+Позволяет создать множество счетов одним запросом через загрузку CSV файла.
+
+### Аутентификация
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+### Формат CSV файла
+
+CSV файл должен содержать следующие колонки:
+
+| Колонка | Обязательная | Описание |
+|---------|--------------|----------|
+| `amount` | Да | Сумма счёта |
+| `currency` | Да | Валюта (USD, EUR, RUB, KZT) |
+| `description` | Нет | Описание счёта |
+| `email` | Нет | Email клиента для уведомления |
+| `externalId` | Нет | Ваш внутренний ID для связки |
+| `redirectUrl` | Нет | URL редиректа после оплаты |
+
+### Пример CSV файла
+
+```csv
+amount,currency,description,email,externalId
+100.00,USD,Заказ #1001,client1@example.com,order_1001
+250.50,USD,Заказ #1002,client2@example.com,order_1002
+75.00,EUR,Подписка Pro,client3@example.com,sub_monthly_003
+500.00,RUB,Услуги консалтинга,client4@example.com,service_004
+```
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://loveandpay.io/api/v1/batch/invoices" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "file=@invoices.csv" \
+  -F "sendEmails=true"
+```
+
+```javascript Node.js
+const FormData = require('form-data');
+const fs = require('fs');
+
+const form = new FormData();
+form.append('file', fs.createReadStream('invoices.csv'));
+form.append('sendEmails', 'true');
+
+const response = await fetch('https://loveandpay.io/api/v1/batch/invoices', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.LOVEANDPAY_API_KEY,
+    ...form.getHeaders()
+  },
+  body: form
+});
+
+const result = await response.json();
+console.log(`Создано: ${result.created}`);
+console.log(`Ошибок: ${result.errors.length}`);
+```
+
+```python Python
+import requests
+
+with open('invoices.csv', 'rb') as f:
+    response = requests.post(
+        'https://loveandpay.io/api/v1/batch/invoices',
+        headers={'x-api-key': 'YOUR_API_KEY'},
+        files={'file': ('invoices.csv', f, 'text/csv')},
+        data={'sendEmails': 'true'}
+    )
+
+result = response.json()
+print(f"Создано: {result['created']}")
+print(f"Ошибок: {len(result['errors'])}")
+```
+
+</CodeGroup>
+
+### Параметры запроса
+
+<ParamField body="file" type="file" required>
+  CSV файл со списком счетов (максимум 1000 строк, 5MB)
+</ParamField>
+
+<ParamField body="sendEmails" type="boolean" default="false">
+  Отправить email с ссылкой на оплату указанным в CSV адресатам
+</ParamField>
+
+<ParamField body="defaultCurrency" type="string">
+  Валюта по умолчанию, если не указана в CSV
+</ParamField>
+
+<ParamField body="defaultRedirectUrl" type="string">
+  URL редиректа по умолчанию
+</ParamField>
+
+### Пример ответа
+
+<ResponseField name="batchId" type="string">
+  Уникальный идентификатор batch-операции
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Общее количество строк в файле
+</ResponseField>
+
+<ResponseField name="created" type="number">
+  Количество успешно созданных счетов
+</ResponseField>
+
+<ResponseField name="failed" type="number">
+  Количество ошибок
+</ResponseField>
+
+<ResponseField name="invoices" type="array">
+  Массив созданных счетов
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Массив ошибок с указанием строки
+</ResponseField>
+
+```json Успешный ответ (201)
+{
+  "batchId": "batch_abc123def456",
+  "total": 4,
+  "created": 3,
+  "failed": 1,
+  "invoices": [
+    {
+      "id": "inv_001",
+      "amount": 100.00,
+      "currency": "USD",
+      "externalId": "order_1001",
+      "paymentUrl": "https://pay.loveandpay.io/inv_001",
+      "status": "pending"
+    },
+    {
+      "id": "inv_002",
+      "amount": 250.50,
+      "currency": "USD",
+      "externalId": "order_1002",
+      "paymentUrl": "https://pay.loveandpay.io/inv_002",
+      "status": "pending"
+    },
+    {
+      "id": "inv_003",
+      "amount": 75.00,
+      "currency": "EUR",
+      "externalId": "sub_monthly_003",
+      "paymentUrl": "https://pay.loveandpay.io/inv_003",
+      "status": "pending"
+    }
+  ],
+  "errors": [
+    {
+      "row": 4,
+      "externalId": "service_004",
+      "error": "Invalid currency: RUB is not supported for this account"
+    }
+  ]
+}
+```
+
+## Ограничения
+
+| Параметр | Значение |
+|----------|----------|
+| Максимум строк | 1000 |
+| Максимум размер файла | 5 MB |
+| Формат | CSV (UTF-8) |
+| Разделитель | Запятая (,) |
+
+## Отслеживание статуса batch
+
+После создания batch-операции вы можете отслеживать статус:
+
+```bash
+curl -X GET "https://loveandpay.io/api/v1/batch/invoices/batch_abc123def456" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+```json
+{
+  "batchId": "batch_abc123def456",
+  "status": "completed",
+  "total": 4,
+  "created": 3,
+  "failed": 1,
+  "paidCount": 2,
+  "totalVolume": 350.50,
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+## Примеры использования
+
+### Выставление счетов клиентам
+
+```javascript
+const Papa = require('papaparse');
+
+// Подготовка данных из вашей системы
+const customers = await db.getCustomersForBilling();
+
+const csvData = customers.map(c => ({
+  amount: c.invoiceAmount,
+  currency: 'USD',
+  description: `Ежемесячная подписка - ${c.plan}`,
+  email: c.email,
+  externalId: `billing_${c.id}_${Date.now()}`
+}));
+
+// Генерация CSV
+const csv = Papa.unparse(csvData);
+
+// Загрузка через API
+const form = new FormData();
+form.append('file', new Blob([csv], { type: 'text/csv' }), 'billing.csv');
+form.append('sendEmails', 'true');
+
+const result = await fetch('/api/v1/batch/invoices', {
+  method: 'POST',
+  headers: { 'x-api-key': API_KEY },
+  body: form
+});
+```
+
+### Экспорт и импорт из Excel
+
+```python
+import pandas as pd
+
+# Читаем Excel файл
+df = pd.read_excel('invoices.xlsx')
+
+# Преобразуем в нужный формат
+df = df.rename(columns={
+    'Сумма': 'amount',
+    'Валюта': 'currency',
+    'Описание': 'description',
+    'Email клиента': 'email',
+    'ID заказа': 'externalId'
+})
+
+# Сохраняем как CSV
+df.to_csv('invoices.csv', index=False)
+
+# Загружаем через API
+# ... (см. пример выше)
+```
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 400 | Неверный формат файла или превышен лимит |
+| 401 | Неверный API ключ |
+| 413 | Файл слишком большой |
+| 422 | Ошибки валидации в CSV |

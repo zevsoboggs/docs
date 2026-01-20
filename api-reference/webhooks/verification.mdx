@@ -1,0 +1,345 @@
+---
+title: 'Верификация подписи'
+description: 'Как проверить подлинность входящих вебхуков'
+---
+
+## Верификация подписи вебхуков
+
+Для защиты от поддельных запросов каждый вебхук подписывается с помощью HMAC-SHA256. Заголовок `x-webhook-signature` содержит подпись в формате `sha256=xxx`.
+
+## Заголовки вебхука
+
+```http
+x-webhook-signature: sha256=abc123def456...
+x-webhook-id: webhook-uuid
+x-webhook-timestamp: 1705312200000
+Content-Type: application/json
+User-Agent: LovePay/1.0
+```
+
+## Где найти секретный ключ
+
+<Info>
+  Секрет отображается при создании вебхука или в карточке вебхука в личном кабинете — нажмите на иконку глаза чтобы его увидеть.
+</Info>
+
+## Алгоритм верификации
+
+1. Получите заголовок `x-webhook-signature` из запроса
+2. Извлеките хеш из строки (уберите префикс `sha256=`)
+3. Вычислите HMAC-SHA256 от **raw body** с вашим секретным ключом
+4. Сравните подписи (используйте timing-safe сравнение)
+
+<Warning>
+  **Важно:** Используйте RAW body запроса, а не распарсенный JSON! Парсинг может изменить форматирование и подпись не совпадёт.
+</Warning>
+
+## Примеры реализации
+
+<CodeGroup>
+
+```javascript Node.js (Express)
+const crypto = require('crypto');
+const express = require('express');
+
+const app = express();
+
+// Важно: используйте raw body для верификации
+app.use('/webhooks', express.raw({ type: 'application/json' }));
+
+const WEBHOOK_SECRET = process.env.LOVEANDPAY_WEBHOOK_SECRET;
+
+function verifySignature(rawBody, signatureHeader, secret) {
+  // Подпись приходит в формате "sha256=xxx"
+  const signature = signatureHeader.replace('sha256=', '');
+
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)  // Используйте RAW body, не parsed JSON!
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
+
+app.post('/webhooks/loveandpay', (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const rawBody = req.body.toString();
+
+  // Верифицируем подпись
+  if (!verifySignature(rawBody, signature, WEBHOOK_SECRET)) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  // Обрабатываем событие
+  const payload = JSON.parse(rawBody);
+  console.log('Event:', payload.event, 'Data:', payload.data);
+
+  switch (payload.event) {
+    case 'INVOICE_PAID':
+      handleInvoicePaid(payload.data);
+      break;
+    case 'INVOICE_EXPIRED':
+      handleInvoiceExpired(payload.data);
+      break;
+    // ... другие события
+  }
+
+  res.json({ success: true });
+});
+
+function handleInvoicePaid(data) {
+  console.log(`Счёт ${data.id} оплачен!`);
+  // Ваша логика: обновление заказа, отправка товара и т.д.
+}
+
+function handleInvoiceExpired(data) {
+  console.log(`Счёт ${data.id} истёк`);
+  // Ваша логика: уведомление клиента, отмена заказа и т.д.
+}
+
+app.listen(3000);
+```
+
+```python Python (Flask)
+import hmac
+import hashlib
+import json
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+WEBHOOK_SECRET = 'your_webhook_secret'
+
+def verify_signature(raw_body: bytes, signature_header: str, secret: str) -> bool:
+    # Подпись приходит в формате "sha256=xxx"
+    signature = signature_header.replace('sha256=', '')
+
+    expected_signature = hmac.new(
+        secret.encode('utf-8'),
+        raw_body,  # Используйте RAW body!
+        hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(signature, expected_signature)
+
+@app.route('/webhooks/loveandpay', methods=['POST'])
+def handle_webhook():
+    signature = request.headers.get('x-webhook-signature')
+    raw_body = request.get_data()
+
+    # Верифицируем подпись
+    if not verify_signature(raw_body, signature, WEBHOOK_SECRET):
+        return jsonify({'error': 'Invalid signature'}), 401
+
+    # Обрабатываем событие
+    payload = json.loads(raw_body)
+    print(f"Event: {payload['event']}, Data: {payload['data']}")
+
+    if payload['event'] == 'INVOICE_PAID':
+        handle_invoice_paid(payload['data'])
+    elif payload['event'] == 'INVOICE_EXPIRED':
+        handle_invoice_expired(payload['data'])
+
+    return jsonify({'success': True}), 200
+
+def handle_invoice_paid(data):
+    print(f"Счёт {data['id']} оплачен!")
+    # Ваша логика
+
+def handle_invoice_expired(data):
+    print(f"Счёт {data['id']} истёк")
+    # Ваша логика
+
+if __name__ == '__main__':
+    app.run(port=3000)
+```
+
+```go Go
+package main
+
+import (
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/hex"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+    "strings"
+)
+
+const webhookSecret = "your_webhook_secret"
+
+func verifySignature(rawBody []byte, signatureHeader, secret string) bool {
+    // Подпись приходит в формате "sha256=xxx"
+    signature := strings.TrimPrefix(signatureHeader, "sha256=")
+
+    mac := hmac.New(sha256.New, []byte(secret))
+    mac.Write(rawBody) // Используйте RAW body!
+    expectedSignature := hex.EncodeToString(mac.Sum(nil))
+
+    return hmac.Equal([]byte(signature), []byte(expectedSignature))
+}
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+    signature := r.Header.Get("x-webhook-signature")
+
+    rawBody, err := io.ReadAll(r.Body)
+    if err != nil {
+        http.Error(w, "Failed to read body", http.StatusBadRequest)
+        return
+    }
+
+    // Верифицируем подпись
+    if !verifySignature(rawBody, signature, webhookSecret) {
+        http.Error(w, "Invalid signature", http.StatusUnauthorized)
+        return
+    }
+
+    // Обрабатываем событие
+    var payload map[string]interface{}
+    json.Unmarshal(rawBody, &payload)
+
+    eventType := payload["event"].(string)
+    data := payload["data"].(map[string]interface{})
+
+    fmt.Printf("Event: %s\n", eventType)
+
+    switch eventType {
+    case "INVOICE_PAID":
+        fmt.Printf("Счёт %s оплачен!\n", data["id"])
+    case "INVOICE_EXPIRED":
+        fmt.Printf("Счёт %s истёк\n", data["id"])
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+func main() {
+    http.HandleFunc("/webhooks/loveandpay", webhookHandler)
+    http.ListenAndServe(":3000", nil)
+}
+```
+
+```php PHP
+<?php
+
+$webhookSecret = 'your_webhook_secret';
+
+function verifySignature($rawBody, $signatureHeader, $secret) {
+    // Подпись приходит в формате "sha256=xxx"
+    $signature = str_replace('sha256=', '', $signatureHeader);
+
+    $expectedSignature = hash_hmac('sha256', $rawBody, $secret);
+
+    return hash_equals($signature, $expectedSignature);
+}
+
+// Получаем RAW body
+$rawBody = file_get_contents('php://input');
+$signature = $_SERVER['HTTP_X_WEBHOOK_SIGNATURE'] ?? '';
+
+// Верифицируем подпись
+if (!verifySignature($rawBody, $signature, $webhookSecret)) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Invalid signature']);
+    exit;
+}
+
+// Обрабатываем событие
+$payload = json_decode($rawBody, true);
+
+error_log("Event: {$payload['event']}");
+
+switch ($payload['event']) {
+    case 'INVOICE_PAID':
+        $data = $payload['data'];
+        error_log("Счёт {$data['id']} оплачен!");
+        // Ваша логика
+        break;
+
+    case 'INVOICE_EXPIRED':
+        $data = $payload['data'];
+        error_log("Счёт {$data['id']} истёк");
+        // Ваша логика
+        break;
+}
+
+http_response_code(200);
+echo json_encode(['success' => true]);
+```
+
+</CodeGroup>
+
+## Важные замечания
+
+<AccordionGroup>
+  <Accordion title="Формат подписи sha256=xxx">
+    Подпись передаётся в заголовке `x-webhook-signature` в формате `sha256=xxx`. Перед сравнением уберите префикс `sha256=`.
+  </Accordion>
+
+  <Accordion title="Используйте timing-safe сравнение">
+    Всегда используйте функции для безопасного сравнения строк (`crypto.timingSafeEqual`, `hmac.compare_digest`, `hash_equals`), чтобы предотвратить timing-атаки.
+  </Accordion>
+
+  <Accordion title="Используйте RAW body">
+    Для верификации **обязательно** используйте оригинальное тело запроса до парсинга JSON. Некоторые фреймворки автоматически парсят JSON, что может изменить форматирование и подпись не совпадёт.
+  </Accordion>
+
+  <Accordion title="Обрабатывайте идемпотентно">
+    События могут приходить повторно (см. поле `retryCount`). Используйте `id` события для дедупликации и предотвращения повторной обработки.
+  </Accordion>
+
+  <Accordion title="ID счета в data.id">
+    ID счета передается в поле `data.id`, а не `data.invoiceId`. Учитывайте это при обработке событий.
+  </Accordion>
+</AccordionGroup>
+
+## Частые ошибки
+
+### Редирект HTTP → HTTPS (код 301)
+
+<Warning>
+  **Распространённая проблема:** Если ваш сервер (nginx) настроен на редирект с HTTP на HTTPS, вебхуки не будут работать!
+
+  При 301 редиректе POST-запрос автоматически превращается в GET — это стандартное поведение HTTP протокола (RFC 7231).
+</Warning>
+
+**Пример неправильного URL:**
+```
+http://api.example.com/webhook
+```
+
+**Правильный URL:**
+```
+https://api.example.com/webhook
+```
+
+**Решение:** Всегда указывайте URL вебхука с протоколом **HTTPS** в настройках. Либо настройте nginx на использование кода 307 (Temporary Redirect), который сохраняет метод запроса.
+
+```nginx
+# Вместо 301 используйте 307 для сохранения POST-метода
+server {
+    listen 80;
+    server_name api.example.com;
+    return 307 https://$server_name$request_uri;
+}
+```
+
+## Тестирование вебхуков
+
+Для локальной разработки используйте туннели:
+
+```bash
+# ngrok
+ngrok http 3000
+
+# localtunnel
+lt --port 3000
+```
+
+Затем укажите полученный URL при создании вебхука в личном кабинете.

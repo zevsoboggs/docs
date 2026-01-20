@@ -1,0 +1,139 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Love&Pay Merchant",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Руководства",
+        "groups": [
+          {
+            "group": "Начало работы",
+            "pages": [
+              "index"
+            ]
+          },
+          {
+            "group": "Инструкции",
+            "pages": [
+              "guides/creating-invoices",
+              "guides/accepting-payments",
+              "guides/kyc-verification",
+              "guides/kyc-client-guide",
+              "guides/employees",
+              "guides/sdk",
+              "guides/infrastructure",
+              "guides/server-errors",
+              "guides/faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API справочник",
+        "groups": [
+          {
+            "group": "Начало работы",
+            "pages": [
+              "api-reference/introduction",
+              "api-reference/authentication"
+            ]
+          },
+          {
+            "group": "Счета (Invoices)",
+            "pages": [
+              "api-reference/invoices/create",
+              "api-reference/invoices/list",
+              "api-reference/invoices/get",
+              "api-reference/invoices/qrcode"
+            ]
+          },
+          {
+            "group": "Вебхуки (Webhooks)",
+            "pages": [
+              "api-reference/webhooks/create",
+              "api-reference/webhooks/events",
+              "api-reference/webhooks/verification"
+            ]
+          },
+          {
+            "group": "KYC Верификация",
+            "pages": [
+              "api-reference/kyc/create-session",
+              "api-reference/kyc/get-status",
+              "api-reference/kyc/events"
+            ]
+          },
+          {
+            "group": "Аналитика и Batch",
+            "pages": [
+              "api-reference/analytics",
+              "api-reference/batch"
+            ]
+          },
+          {
+            "group": "Identy (AI Подписи)",
+            "pages": [
+              "api-reference/identy/introduction",
+              "api-reference/identy/validate",
+              "api-reference/identy/upload",
+              "api-reference/identy/categories"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": []
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Поддержка",
+        "href": "mailto:hi@loveandpay.io"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Панель управления",
+      "href": "https://loveandpay.io/dashboard"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "footer": {
+    "copyright": "© 2026 Love&Pay. Все права защищены.",
+    "poweredByMintlify": false
+  },
+  "api": {
+    "baseUrl": "https://loveandpay.io/api/v1",
+    "auth": {
+      "method": "header",
+      "name": "x-api-key"
+    },
+    "playground": {
+      "mode": "simple"
+    }
+  }
+}

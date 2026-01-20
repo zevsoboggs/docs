@@ -1,0 +1,187 @@
+---
+title: 'Создание KYC сессии'
+description: 'Инициирование процесса верификации пользователя'
+api: 'POST https://loveandpay.io/api/v1/kyc/sessions'
+---
+
+## Создание KYC сессии
+
+Создаёт новую сессию для прохождения KYC верификации пользователем.
+
+### Аутентификация
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+### Параметры запроса
+
+<ParamField body="level" type="string" required>
+  Уровень верификации:
+  - `basic` - базовая верификация (документ + селфи)
+  - `advanced` - расширенная верификация (+ подтверждение адреса)
+</ParamField>
+
+<ParamField body="redirectUrl" type="string" required>
+  URL для редиректа после завершения верификации
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Произвольные данные для связи с вашей системой (например, ID пользователя)
+</ParamField>
+
+<ParamField body="locale" type="string" default="ru">
+  Язык интерфейса верификации: `ru`, `en`, `kz`
+</ParamField>
+
+<ParamField body="webhookUrl" type="string">
+  URL для отправки результата верификации (альтернатива глобальному вебхуку)
+</ParamField>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://loveandpay.io/api/v1/kyc/sessions" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "level": "basic",
+    "redirectUrl": "https://yoursite.com/kyc/complete",
+    "metadata": {
+      "userId": "user_12345",
+      "email": "user@example.com"
+    },
+    "locale": "ru"
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('https://loveandpay.io/api/v1/kyc/sessions', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.LOVEANDPAY_API_KEY,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    level: 'basic',
+    redirectUrl: 'https://yoursite.com/kyc/complete',
+    metadata: {
+      userId: 'user_12345',
+      email: 'user@example.com'
+    },
+    locale: 'ru'
+  })
+});
+
+const session = await response.json();
+// Перенаправьте пользователя на verificationUrl
+window.location.href = session.verificationUrl;
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://loveandpay.io/api/v1/kyc/sessions',
+    headers={
+        'x-api-key': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'level': 'basic',
+        'redirectUrl': 'https://yoursite.com/kyc/complete',
+        'metadata': {
+            'userId': 'user_12345',
+            'email': 'user@example.com'
+        },
+        'locale': 'ru'
+    }
+)
+
+session = response.json()
+print(session['verificationUrl'])  # URL для верификации
+```
+
+</CodeGroup>
+
+### Пример ответа
+
+<ResponseField name="id" type="string">
+  Уникальный идентификатор сессии
+</ResponseField>
+
+<ResponseField name="level" type="string">
+  Уровень верификации
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Статус сессии: `pending`, `in_progress`, `completed`, `failed`, `expired`
+</ResponseField>
+
+<ResponseField name="verificationUrl" type="string">
+  URL страницы верификации для пользователя
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Переданные метаданные
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  Дата создания
+</ResponseField>
+
+<ResponseField name="expiresAt" type="string">
+  Дата истечения сессии (по умолчанию: 24 часа)
+</ResponseField>
+
+```json Успешный ответ (201)
+{
+  "id": "kyc_abc123def456",
+  "level": "basic",
+  "status": "pending",
+  "verificationUrl": "https://verify.loveandpay.io/kyc_abc123def456",
+  "metadata": {
+    "userId": "user_12345",
+    "email": "user@example.com"
+  },
+  "createdAt": "2024-01-15T10:30:00Z",
+  "expiresAt": "2024-01-16T10:30:00Z"
+}
+```
+
+## Процесс верификации
+
+<Steps>
+  <Step title="Создайте сессию">
+    Вызовите API для создания KYC сессии
+  </Step>
+  <Step title="Перенаправьте пользователя">
+    Направьте пользователя на `verificationUrl`
+  </Step>
+  <Step title="Пользователь проходит верификацию">
+    Пользователь загружает документы и делает селфи
+  </Step>
+  <Step title="Автоматическая проверка">
+    Система проверяет документы (обычно 1-5 минут)
+  </Step>
+  <Step title="Результат">
+    Пользователь перенаправляется на `redirectUrl`, вы получаете вебхук
+  </Step>
+</Steps>
+
+## Уровни верификации
+
+| Уровень | Требования | Время проверки |
+|---------|------------|----------------|
+| `basic` | Документ (паспорт/ID) + селфи | 1-5 минут |
+| `advanced` | Документ + селфи + подтверждение адреса | 5-30 минут |
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 400 | Неверные параметры запроса |
+| 401 | Неверный API ключ |
+| 422 | Валидация не пройдена |

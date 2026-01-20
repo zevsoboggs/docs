@@ -1,0 +1,242 @@
+---
+title: 'Аналитика'
+description: 'Получение статистики и аналитических данных'
+api: 'GET https://loveandpay.io/api/v1/analytics'
+---
+
+## Получение аналитики
+
+Возвращает агрегированные данные о платежах за указанный период.
+
+### Аутентификация
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+### Query параметры
+
+<ParamField query="from" type="string" required>
+  Начальная дата периода в формате ISO 8601
+</ParamField>
+
+<ParamField query="to" type="string" required>
+  Конечная дата периода в формате ISO 8601
+</ParamField>
+
+<ParamField query="currency" type="string">
+  Фильтр по валюте: `USD`, `EUR`, `RUB`, `KZT`. Если не указан, возвращаются данные по всем валютам.
+</ParamField>
+
+<ParamField query="groupBy" type="string" default="day">
+  Группировка данных: `hour`, `day`, `week`, `month`
+</ParamField>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v1/analytics?from=2024-01-01T00:00:00Z&to=2024-01-31T23:59:59Z&groupBy=day" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+```javascript Node.js
+const params = new URLSearchParams({
+  from: '2024-01-01T00:00:00Z',
+  to: '2024-01-31T23:59:59Z',
+  groupBy: 'day'
+});
+
+const response = await fetch(
+  `https://loveandpay.io/api/v1/analytics?${params}`,
+  {
+    headers: {
+      'x-api-key': process.env.LOVEANDPAY_API_KEY
+    }
+  }
+);
+
+const analytics = await response.json();
+console.log('Общий объём:', analytics.summary.totalVolume);
+console.log('Конверсия:', analytics.summary.conversionRate);
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://loveandpay.io/api/v1/analytics',
+    headers={'x-api-key': 'YOUR_API_KEY'},
+    params={
+        'from': '2024-01-01T00:00:00Z',
+        'to': '2024-01-31T23:59:59Z',
+        'groupBy': 'day'
+    }
+)
+
+analytics = response.json()
+print(f"Общий объём: {analytics['summary']['totalVolume']}")
+print(f"Конверсия: {analytics['summary']['conversionRate']}%")
+```
+
+</CodeGroup>
+
+### Пример ответа
+
+<ResponseField name="summary" type="object">
+  Сводные данные за весь период
+  <Expandable title="Поля summary">
+    <ResponseField name="totalVolume" type="number">
+      Общий объём платежей
+    </ResponseField>
+    <ResponseField name="totalCount" type="number">
+      Общее количество счетов
+    </ResponseField>
+    <ResponseField name="paidCount" type="number">
+      Количество оплаченных счетов
+    </ResponseField>
+    <ResponseField name="conversionRate" type="number">
+      Конверсия в процентах
+    </ResponseField>
+    <ResponseField name="averageAmount" type="number">
+      Средняя сумма счёта
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="byPeriod" type="array">
+  Данные с разбивкой по периодам
+</ResponseField>
+
+<ResponseField name="byCurrency" type="object">
+  Данные с разбивкой по валютам
+</ResponseField>
+
+<ResponseField name="byBank" type="object">
+  Данные с разбивкой по банкам плательщиков
+</ResponseField>
+
+```json Успешный ответ (200)
+{
+  "summary": {
+    "totalVolume": 10500000.00,
+    "totalCount": 1547,
+    "paidCount": 1203,
+    "expiredCount": 289,
+    "cancelledCount": 55,
+    "conversionRate": 77.76,
+    "averageAmount": 8729.01
+  },
+  "byPeriod": [
+    {
+      "date": "2024-01-01",
+      "volume": 425000.00,
+      "count": 52,
+      "paidCount": 41
+    },
+    {
+      "date": "2024-01-02",
+      "volume": 389000.00,
+      "count": 48,
+      "paidCount": 38
+    }
+    // ... остальные дни
+  ],
+  "byCurrency": {
+    "RUB": {
+      "volume": 10500000.00,
+      "count": 1203,
+      "paidCount": 1203
+    }
+  },
+  "byBank": {
+    "Сбербанк": {
+      "volume": 5250000.00,
+      "count": 612,
+      "percentage": 49.71
+    },
+    "Тинькофф": {
+      "volume": 3180000.00,
+      "count": 385,
+      "percentage": 30.38
+    },
+    "Альфа-Банк": {
+      "volume": 2070000.00,
+      "count": 206,
+      "percentage": 19.91
+    }
+  }
+}
+```
+
+## Метрики
+
+### Основные показатели
+
+| Метрика | Описание |
+|---------|----------|
+| `totalVolume` | Сумма всех оплаченных счетов |
+| `totalCount` | Общее количество созданных счетов |
+| `paidCount` | Количество оплаченных счетов |
+| `conversionRate` | Процент оплаченных от созданных |
+| `averageAmount` | Средний чек |
+
+### Группировка по времени
+
+| Значение | Описание |
+|----------|----------|
+| `hour` | По часам (для периодов до 7 дней) |
+| `day` | По дням (по умолчанию) |
+| `week` | По неделям |
+| `month` | По месяцам |
+
+## Примеры использования
+
+### Дашборд с графиками
+
+```javascript
+// Получаем данные за последние 30 дней
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+const response = await fetch(
+  `https://loveandpay.io/api/v1/analytics?` +
+  `from=${thirtyDaysAgo.toISOString()}&` +
+  `to=${new Date().toISOString()}&` +
+  `groupBy=day`,
+  { headers: { 'x-api-key': API_KEY } }
+);
+
+const { byPeriod } = await response.json();
+
+// Данные для графика
+const chartData = byPeriod.map(day => ({
+  date: day.date,
+  volume: day.volume,
+  count: day.paidCount
+}));
+```
+
+### Сравнение периодов
+
+```javascript
+async function compareMonths(month1, month2) {
+  const [data1, data2] = await Promise.all([
+    fetchAnalytics(month1.start, month1.end),
+    fetchAnalytics(month2.start, month2.end)
+  ]);
+
+  const volumeChange = ((data2.summary.totalVolume - data1.summary.totalVolume)
+    / data1.summary.totalVolume * 100).toFixed(2);
+
+  console.log(`Изменение объёма: ${volumeChange}%`);
+}
+```
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 400 | Неверные параметры (даты, группировка) |
+| 401 | Неверный API ключ |

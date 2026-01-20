@@ -1,0 +1,161 @@
+---
+title: 'QR-код счёта'
+description: 'Получение QR-кода для оплаты счёта'
+api: 'GET https://loveandpay.io/api/v1/invoices/{id}/qrcode'
+---
+
+## Получение QR-кода
+
+Возвращает QR-код для оплаты счёта в формате PNG или SVG.
+
+### Аутентификация
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+### Path параметры
+
+<ParamField path="id" type="string" required>
+  Уникальный идентификатор счёта
+</ParamField>
+
+### Query параметры
+
+<ParamField query="format" type="string" default="png">
+  Формат изображения: `png` или `svg`
+</ParamField>
+
+<ParamField query="size" type="number" default="256">
+  Размер изображения в пикселях (от 128 до 1024)
+</ParamField>
+
+### Пример запроса
+
+<CodeGroup>
+
+```bash cURL (PNG)
+curl -X GET "https://loveandpay.io/api/v1/invoices/inv_abc123def456/qrcode?format=png&size=512" \
+  -H "x-api-key: YOUR_API_KEY" \
+  --output qrcode.png
+```
+
+```bash cURL (SVG)
+curl -X GET "https://loveandpay.io/api/v1/invoices/inv_abc123def456/qrcode?format=svg" \
+  -H "x-api-key: YOUR_API_KEY" \
+  --output qrcode.svg
+```
+
+```javascript Node.js
+const invoiceId = 'inv_abc123def456';
+
+// Получить URL для отображения
+const qrUrl = `https://loveandpay.io/api/v1/invoices/${invoiceId}/qrcode?size=300`;
+
+// Или загрузить как blob
+const response = await fetch(
+  `https://loveandpay.io/api/v1/invoices/${invoiceId}/qrcode?format=png&size=512`,
+  {
+    headers: {
+      'x-api-key': process.env.LOVEANDPAY_API_KEY
+    }
+  }
+);
+
+const blob = await response.blob();
+```
+
+```python Python
+import requests
+
+invoice_id = 'inv_abc123def456'
+
+response = requests.get(
+    f'https://loveandpay.io/api/v1/invoices/{invoice_id}/qrcode',
+    headers={'x-api-key': 'YOUR_API_KEY'},
+    params={'format': 'png', 'size': 512}
+)
+
+# Сохранить в файл
+with open('qrcode.png', 'wb') as f:
+    f.write(response.content)
+```
+
+</CodeGroup>
+
+### Ответ
+
+Эндпоинт возвращает бинарные данные изображения с соответствующим Content-Type:
+
+- `image/png` для формата PNG
+- `image/svg+xml` для формата SVG
+
+### Использование в HTML
+
+```html
+<!-- Прямая ссылка (требует аутентификации через query параметр) -->
+<img src="https://loveandpay.io/api/v1/invoices/inv_abc123def456/qrcode?size=256"
+     alt="QR код для оплаты" />
+
+<!-- Или через data URL (на сервере) -->
+<img src="data:image/png;base64,{base64_encoded_qr}"
+     alt="QR код для оплаты" />
+```
+
+### Пример интеграции
+
+<CodeGroup>
+
+```jsx React
+function PaymentQR({ invoiceId }) {
+  const [qrUrl, setQrUrl] = useState(null);
+
+  useEffect(() => {
+    async function fetchQR() {
+      const response = await fetch(
+        `/api/invoices/${invoiceId}/qrcode?format=png&size=300`,
+        { headers: { 'x-api-key': API_KEY } }
+      );
+      const blob = await response.blob();
+      setQrUrl(URL.createObjectURL(blob));
+    }
+    fetchQR();
+  }, [invoiceId]);
+
+  return qrUrl ? <img src={qrUrl} alt="QR код для оплаты" /> : <p>Загрузка...</p>;
+}
+```
+
+```vue Vue.js
+<template>
+  <img v-if="qrUrl" :src="qrUrl" alt="QR код для оплаты" />
+  <p v-else>Загрузка...</p>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+
+const props = defineProps(['invoiceId']);
+const qrUrl = ref(null);
+
+onMounted(async () => {
+  const response = await fetch(
+    `/api/invoices/${props.invoiceId}/qrcode?format=png&size=300`,
+    { headers: { 'x-api-key': API_KEY } }
+  );
+  const blob = await response.blob();
+  qrUrl.value = URL.createObjectURL(blob);
+});
+</script>
+```
+
+</CodeGroup>
+
+### Ошибки
+
+| Код | Описание |
+|-----|----------|
+| 400 | Неверные параметры (формат или размер) |
+| 401 | Неверный API ключ |
+| 404 | Счёт не найден |
+| 410 | Счёт истёк или отменён |
