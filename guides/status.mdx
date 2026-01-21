@@ -9,8 +9,10 @@ export const StatusPage = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [isDark, setIsDark] = React.useState(true);
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setMounted(true);
     fetch('https://lnp-status.grekdev.com/api/Status')
       .then(r => r.json())
       .then(json => {
@@ -24,6 +26,8 @@ export const StatusPage = () => {
   }, []);
 
   React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const checkTheme = () => {
       setIsDark(document.documentElement.classList.contains('dark'));
     };
@@ -33,7 +37,7 @@ export const StatusPage = () => {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     return () => observer.disconnect();
-  }, []);
+  }, [mounted]);
 
   if (loading) return (
     <div style={{ padding: '40px', textAlign: 'center', color: 'var(--tw-prose-body)' }}>
