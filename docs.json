@@ -27,6 +27,7 @@
               "guides/kyc-verification",
               "guides/kyc-client-guide",
               "guides/employees",
+              "guides/virtual-cards",
               "guides/sdk",
               "guides/infrastructure",
               "guides/server-errors",
