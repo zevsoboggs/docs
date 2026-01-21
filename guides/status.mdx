@@ -8,11 +8,8 @@ export const StatusPage = () => {
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
-  const [isDark, setIsDark] = React.useState(true);
-  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
-    setMounted(true);
     fetch('https://lnp-status.grekdev.com/api/Status')
       .then(r => r.json())
       .then(json => {
@@ -25,22 +22,8 @@ export const StatusPage = () => {
       });
   }, []);
 
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const checkTheme = () => {
-      setIsDark(document.documentElement.classList.contains('dark'));
-    };
-    checkTheme();
-
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    return () => observer.disconnect();
-  }, [mounted]);
-
   if (loading) return (
-    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--tw-prose-body)' }}>
+    <div style={{ padding: '40px', textAlign: 'center' }}>
       <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
       Загрузка статуса...
     </div>
@@ -48,288 +31,153 @@ export const StatusPage = () => {
 
   if (error) return (
     <div style={{ padding: '20px', color: '#ef4444', background: 'rgba(239,68,68,0.1)', borderRadius: '8px' }}>
-      ❌ Ошибка загрузки: {error}
+      Ошибка загрузки: {error}
     </div>
   );
 
   if (!data) return null;
 
-  const statusConfig = {
-    1: { color: '#16a34a', colorLight: '#15803d', bg: 'rgba(34,197,94,0.12)', bgLight: 'rgba(22,163,74,0.1)', label: 'Operational', icon: '🟢' },
-    2: { color: '#eab308', colorLight: '#ca8a04', bg: 'rgba(234,179,8,0.15)', bgLight: 'rgba(202,138,4,0.12)', label: 'Degraded', icon: '🟡' },
-    3: { color: '#f97316', colorLight: '#ea580c', bg: 'rgba(249,115,22,0.15)', bgLight: 'rgba(234,88,12,0.1)', label: 'Partial Outage', icon: '🟠' },
-    4: { color: '#ef4444', colorLight: '#dc2626', bg: 'rgba(239,68,68,0.15)', bgLight: 'rgba(220,38,38,0.1)', label: 'Major Outage', icon: '🔴' },
-    5: { color: '#6b7280', colorLight: '#4b5563', bg: 'rgba(107,114,128,0.15)', bgLight: 'rgba(75,85,99,0.1)', label: 'Maintenance', icon: '🔧' },
+  const statusLabels = {
+    1: 'Operational',
+    2: 'Degraded',
+    3: 'Partial Outage',
+    4: 'Major Outage',
+    5: 'Maintenance'
   };
 
-  const getStatusConfig = (status) => {
-    const cfg = statusConfig[status] || statusConfig[1];
-    return {
-      ...cfg,
-      color: isDark ? cfg.color : cfg.colorLight,
-      bg: isDark ? cfg.bg : cfg.bgLight,
-    };
+  const statusColors = {
+    1: '#22c55e',
+    2: '#eab308',
+    3: '#f97316',
+    4: '#ef4444',
+    5: '#6b7280'
+  };
+
+  const statusIcons = {
+    1: '🟢',
+    2: '🟡',
+    3: '🟠',
+    4: '🔴',
+    5: '🔧'
   };
 
   const overall = data.overallStatus || {};
-  const overallStatusLevel = overall.status || 1;
-
-  const UptimeBar = ({ uptime24h, uptime7d, uptime30d }) => {
-    const getColor = (val) => {
-      if (val === undefined || val === null) return isDark ? '#374151' : '#9ca3af';
-      if (val >= 99) return isDark ? '#22c55e' : '#16a34a';
-      if (val >= 95) return isDark ? '#eab308' : '#ca8a04';
-      if (val >= 90) return isDark ? '#f97316' : '#ea580c';
-      return isDark ? '#ef4444' : '#dc2626';
-    };
-
-    const bars = [
-      { val: uptime30d, label: '30d', opacity: 0.4 },
-      { val: uptime7d, label: '7d', opacity: 0.7 },
-      { val: uptime24h, label: '24h', opacity: 1 },
-    ];
-
-    return (
-      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '2px' }} title={`30d: ${uptime30d?.toFixed(1) || 'N/A'}% | 7d: ${uptime7d?.toFixed(1) || 'N/A'}% | 24h: ${uptime24h?.toFixed(1) || 'N/A'}%`}>
-          {bars.map((bar, i) => (
-            <div
-              key={i}
-              style={{
-                width: '10px',
-                height: '24px',
-                borderRadius: '3px',
-                backgroundColor: getColor(bar.val),
-                opacity: bar.opacity
-              }}
-            />
-          ))}
-        </div>
-        <span style={{ fontSize: '12px', color: 'var(--tw-prose-body)', opacity: isDark ? 0.8 : 0.7, minWidth: '45px' }}>
-          {uptime24h !== undefined && uptime24h !== null ? `${uptime24h.toFixed(0)}%` : 'N/A'}
-        </span>
-      </div>
-    );
-  };
+  const overallStatus = overall.status || 1;
 
   return (
-    <div style={{ color: 'var(--tw-prose-body)' }}>
-      {/* Legend */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '16px',
-        padding: '14px 18px',
-        marginBottom: '20px',
-        borderRadius: '10px',
-        backgroundColor: isDark ? 'var(--tw-prose-pre-bg)' : '#ffffff',
-        border: isDark ? '1px solid var(--tw-prose-hr)' : '1px solid #e5e7eb',
-        boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.08)'
-      }}>
-        <span style={{ fontSize: '13px', fontWeight: '600' }}>Статусы:</span>
-        {Object.entries(statusConfig).slice(0, 4).map(([key, cfg]) => (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
-            <span>{cfg.icon}</span>
-            <span style={{ opacity: isDark ? 0.85 : 0.75 }}>{cfg.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Overall Status Banner */}
+    <div>
       <div style={{
         padding: '24px',
         borderRadius: '12px',
-        marginBottom: '28px',
-        backgroundColor: isDark ? getStatusConfig(overallStatusLevel).bg : '#ffffff',
-        border: `2px solid ${getStatusConfig(overallStatusLevel).color}`,
-        boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)'
+        marginBottom: '24px',
+        border: '2px solid ' + statusColors[overallStatus],
+        background: statusColors[overallStatus] + '15'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '40px' }}>{overallStatusLevel === 1 ? '✅' : '⚠️'}</span>
+          <span style={{ fontSize: '36px' }}>{overallStatus === 1 ? '✅' : '⚠️'}</span>
           <div>
-            <div style={{ fontWeight: '700', fontSize: '22px', marginBottom: '6px' }}>
+            <div style={{ fontWeight: '700', fontSize: '20px', marginBottom: '4px' }}>
               {data.statusMessage}
             </div>
-            <div style={{ fontSize: '15px', opacity: isDark ? 0.85 : 0.75, display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <span><span style={{ color: isDark ? '#22c55e' : '#16a34a', fontSize: '12px' }}>●</span> {overall.operationalCount || 0} работают</span>
-              {(overall.degradedCount || 0) > 0 && <span><span style={{ color: isDark ? '#eab308' : '#ca8a04', fontSize: '12px' }}>●</span> {overall.degradedCount} с проблемами</span>}
-              {(overall.outageCount || 0) > 0 && <span><span style={{ color: isDark ? '#ef4444' : '#dc2626', fontSize: '12px' }}>●</span> {overall.outageCount} недоступны</span>}
+            <div style={{ fontSize: '14px', opacity: 0.8 }}>
+              <span style={{ color: '#22c55e' }}>●</span> {overall.operationalCount || 0} работают
+              {(overall.degradedCount || 0) > 0 && <span> · <span style={{ color: '#eab308' }}>●</span> {overall.degradedCount} с проблемами</span>}
+              {(overall.outageCount || 0) > 0 && <span> · <span style={{ color: '#ef4444' }}>●</span> {overall.outageCount} недоступны</span>}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Active Incidents */}
       {data.activeIncidents && data.activeIncidents.length > 0 && (
-        <div style={{ marginBottom: '32px' }}>
-          <h3 style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '18px' }}>
-            🚨 Активные инциденты ({data.activeIncidents.length})
-          </h3>
+        <div style={{ marginBottom: '24px' }}>
+          <h3>🚨 Активные инциденты ({data.activeIncidents.length})</h3>
           {data.activeIncidents.map((incident, i) => (
             <div key={i} style={{
-              padding: '18px',
-              borderRadius: '10px',
-              marginBottom: '10px',
-              backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#ffffff',
-              borderLeft: `4px solid ${isDark ? '#ef4444' : '#dc2626'}`,
-              boxShadow: isDark ? 'none' : '0 1px 4px rgba(220,38,38,0.15)'
+              padding: '16px',
+              borderRadius: '8px',
+              marginBottom: '8px',
+              background: 'rgba(239,68,68,0.1)',
+              borderLeft: '4px solid #ef4444'
             }}>
-              <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '16px' }}>
-                {incident.title}
-              </div>
-              <div style={{ fontSize: '14px', opacity: isDark ? 0.85 : 0.75, marginBottom: '10px' }}>
-                {incident.description}
-              </div>
-              <div style={{ fontSize: '12px', opacity: isDark ? 0.6 : 0.55 }}>
-                🕐 Начало: {new Date(incident.createdAt).toLocaleString('ru-RU')}
+              <div style={{ fontWeight: '600', marginBottom: '6px' }}>{incident.title}</div>
+              <div style={{ fontSize: '14px', opacity: 0.8, marginBottom: '8px' }}>{incident.description}</div>
+              <div style={{ fontSize: '12px', opacity: 0.6 }}>
+                Начало: {new Date(incident.createdAt).toLocaleString('ru-RU')}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Services by Group */}
       {data.serviceGroups && data.serviceGroups.map((group, gi) => (
-        <div key={gi} style={{ marginBottom: '32px' }}>
-          <h3 style={{ marginBottom: '14px', fontSize: '17px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {group.groupName === 'Production' ? '🚀' : '⚙️'} {group.groupName}
-          </h3>
-          <div style={{
-            borderRadius: '12px',
-            overflow: 'hidden',
-            border: isDark ? '1px solid var(--tw-prose-hr)' : '1px solid #e5e7eb',
-            backgroundColor: isDark ? 'var(--tw-prose-pre-bg)' : '#ffffff',
-            boxShadow: isDark ? 'none' : '0 1px 4px rgba(0,0,0,0.06)'
-          }}>
-            {group.services && group.services.map((service, si) => {
-              const cfg = getStatusConfig(service.currentStatus);
-
-              return (
-                <div key={si} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '16px 18px',
-                  borderBottom: si < group.services.length - 1 ? (isDark ? '1px solid var(--tw-prose-hr)' : '1px solid #f3f4f6') : 'none',
-                  gap: '12px',
-                  flexWrap: 'wrap'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1', minWidth: '200px' }}>
-                    <span style={{ fontSize: '18px' }}>{cfg.icon}</span>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: '15px' }}>{service.name}</div>
-                      {service.url && (
-                        <div style={{ fontSize: '12px', opacity: isDark ? 0.5 : 0.45, marginTop: '2px' }}>{service.url}</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
-                    {/* Uptime bars */}
-                    <UptimeBar
-                      uptime24h={service.uptimePercentage24h}
-                      uptime7d={service.uptimePercentage7d}
-                      uptime30d={service.uptimePercentage30d}
-                    />
-
-                    {/* Response time */}
-                    <div style={{
-                      fontSize: '13px',
-                      opacity: isDark ? 0.7 : 0.6,
-                      minWidth: '65px',
-                      textAlign: 'right'
-                    }}>
-                      {service.lastResponseTimeMs ? `${service.lastResponseTimeMs}ms` : '—'}
-                    </div>
-
-                    {/* Status badge */}
-                    <span style={{
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      backgroundColor: isDark ? cfg.bg : `${cfg.color}15`,
-                      color: cfg.color,
-                      minWidth: '110px',
-                      textAlign: 'center',
-                      border: isDark ? 'none' : `1px solid ${cfg.color}30`
-                    }}>
-                      {cfg.label}
-                    </span>
+        <div key={gi} style={{ marginBottom: '24px' }}>
+          <h3>{group.groupName === 'Production' ? '🚀' : '⚙️'} {group.groupName}</h3>
+          <div style={{ border: '1px solid var(--border-color, #e5e7eb)', borderRadius: '8px', overflow: 'hidden' }}>
+            {group.services && group.services.map((service, si) => (
+              <div key={si} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                borderBottom: si < group.services.length - 1 ? '1px solid var(--border-color, #e5e7eb)' : 'none',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span>{statusIcons[service.currentStatus] || '🟢'}</span>
+                  <div>
+                    <div style={{ fontWeight: '600' }}>{service.name}</div>
+                    {service.url && <div style={{ fontSize: '12px', opacity: 0.5 }}>{service.url}</div>}
                   </div>
                 </div>
-              );
-            })}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {service.uptimePercentage24h !== undefined && (
+                    <span style={{ fontSize: '13px', opacity: 0.7 }}>
+                      {service.uptimePercentage24h.toFixed(1)}% uptime
+                    </span>
+                  )}
+                  {service.lastResponseTimeMs && (
+                    <span style={{ fontSize: '13px', opacity: 0.7 }}>{service.lastResponseTimeMs}ms</span>
+                  )}
+                  <span style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    background: statusColors[service.currentStatus] + '20',
+                    color: statusColors[service.currentStatus]
+                  }}>
+                    {statusLabels[service.currentStatus] || 'Unknown'}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ))}
 
-      {/* Uptime Legend */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '20px',
-        padding: '14px 18px',
-        marginBottom: '28px',
-        borderRadius: '10px',
-        backgroundColor: isDark ? 'var(--tw-prose-pre-bg)' : '#ffffff',
-        border: isDark ? '1px solid var(--tw-prose-hr)' : '1px solid #e5e7eb',
-        boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.08)',
-        fontSize: '13px',
-        flexWrap: 'wrap'
-      }}>
-        <span style={{ fontWeight: '600' }}>Uptime:</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ display: 'flex', gap: '2px' }}>
-            <div style={{ width: '10px', height: '18px', backgroundColor: isDark ? '#22c55e' : '#16a34a', borderRadius: '3px', opacity: 0.4 }} />
-            <div style={{ width: '10px', height: '18px', backgroundColor: isDark ? '#22c55e' : '#16a34a', borderRadius: '3px', opacity: 0.7 }} />
-            <div style={{ width: '10px', height: '18px', backgroundColor: isDark ? '#22c55e' : '#16a34a', borderRadius: '3px', opacity: 1 }} />
-          </div>
-          <span style={{ opacity: isDark ? 0.7 : 0.6 }}>30d → 7d → 24h</span>
-        </div>
-        <span style={{ opacity: isDark ? 0.4 : 0.3 }}>|</span>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <span><span style={{ color: isDark ? '#22c55e' : '#16a34a' }}>■</span> ≥99%</span>
-          <span><span style={{ color: isDark ? '#eab308' : '#ca8a04' }}>■</span> ≥95%</span>
-          <span><span style={{ color: isDark ? '#f97316' : '#ea580c' }}>■</span> ≥90%</span>
-          <span><span style={{ color: isDark ? '#ef4444' : '#dc2626' }}>■</span> &lt;90%</span>
-        </div>
-      </div>
-
-      {/* Upcoming Maintenance */}
       {data.upcomingMaintenances && data.upcomingMaintenances.length > 0 && (
-        <div style={{ marginBottom: '32px' }}>
-          <h3 style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '18px' }}>
-            📅 Плановые работы
-          </h3>
+        <div style={{ marginBottom: '24px' }}>
+          <h3>📅 Плановые работы</h3>
           {data.upcomingMaintenances.map((maint, i) => (
             <div key={i} style={{
-              padding: '18px',
-              borderRadius: '10px',
-              marginBottom: '10px',
-              backgroundColor: isDark ? 'rgba(59,130,246,0.1)' : '#ffffff',
-              borderLeft: `4px solid ${isDark ? '#3b82f6' : '#2563eb'}`,
-              boxShadow: isDark ? 'none' : '0 1px 4px rgba(37,99,235,0.12)'
+              padding: '16px',
+              borderRadius: '8px',
+              marginBottom: '8px',
+              background: 'rgba(59,130,246,0.1)',
+              borderLeft: '4px solid #3b82f6'
             }}>
-              <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '16px' }}>{maint.title}</div>
-              <div style={{ fontSize: '14px', opacity: isDark ? 0.85 : 0.75, marginBottom: '10px' }}>{maint.description}</div>
-              <div style={{ fontSize: '12px', opacity: isDark ? 0.6 : 0.55 }}>
-                📅 {new Date(maint.scheduledStart).toLocaleString('ru-RU')} — {new Date(maint.scheduledEnd).toLocaleString('ru-RU')}
+              <div style={{ fontWeight: '600', marginBottom: '6px' }}>{maint.title}</div>
+              <div style={{ fontSize: '14px', opacity: 0.8, marginBottom: '8px' }}>{maint.description}</div>
+              <div style={{ fontSize: '12px', opacity: 0.6 }}>
+                {new Date(maint.scheduledStart).toLocaleString('ru-RU')} — {new Date(maint.scheduledEnd).toLocaleString('ru-RU')}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Footer */}
-      <div style={{
-        textAlign: 'center',
-        padding: '18px',
-        marginTop: '28px',
-        borderTop: isDark ? '1px solid var(--tw-prose-hr)' : '1px solid #e5e7eb',
-        fontSize: '13px',
-        opacity: isDark ? 0.6 : 0.55
-      }}>
+      <div style={{ textAlign: 'center', fontSize: '13px', opacity: 0.5, paddingTop: '16px', borderTop: '1px solid var(--border-color, #e5e7eb)' }}>
         Обновлено: {new Date(data.generatedAt || Date.now()).toLocaleString('ru-RU')}
       </div>
     </div>
