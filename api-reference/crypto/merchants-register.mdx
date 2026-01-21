@@ -1,0 +1,137 @@
+---
+title: 'Регистрация мерчанта'
+description: 'Регистрация нового мерчант-аккаунта'
+api: 'POST https://crypto.api.loveandpay.io/api/v1/merchants/register'
+---
+
+<Note>
+Этот эндпоинт **не требует** аутентификации.
+</Note>
+
+## Тело запроса
+
+<ParamField body="companyName" type="string" required>
+  Название компании
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Контактный email
+</ParamField>
+
+<ParamField body="address" type="string" required>
+  Юридический адрес
+</ParamField>
+
+<ParamField body="city" type="string">
+  Город
+</ParamField>
+
+<ParamField body="country" type="string">
+  Страна
+</ParamField>
+
+<ParamField body="webhookUrl" type="string">
+  URL для получения вебхук-уведомлений
+</ParamField>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "merchantId": "653260c2-5acf-4ca6-9cc7-d761cffc5e3e",
+    "companyName": "My Company LLC",
+    "email": "merchant@example.com",
+    "status": "Active",
+    "apiKey": {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "apiKey": "lc_H8BLURMH0Vq241DqzatqOHajKUlBQERF",
+      "hmacSecret": "hoKHB8WoFQH2oFFK8HcDakLo7eLAViH5LQDgXEREIMP2dwZooWXng7u36Prk7VUo",
+      "name": "Default API Key",
+      "createdAt": "2026-01-21T20:00:00Z"
+    },
+    "createdAt": "2026-01-21T20:00:00Z"
+  }
+}
+```
+
+```json 400
+{
+  "success": false,
+  "message": "A merchant with this email already exists"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/merchants/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyName": "My Company LLC",
+    "email": "merchant@example.com",
+    "address": "123 Main Street, Suite 100",
+    "city": "New York",
+    "country": "USA",
+    "webhookUrl": "https://mysite.com/webhooks/crypto"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://crypto.api.loveandpay.io/api/v1/merchants/register",
+    json={
+        "companyName": "My Company LLC",
+        "email": "merchant@example.com",
+        "address": "123 Main Street, Suite 100",
+        "city": "New York",
+        "country": "USA",
+        "webhookUrl": "https://mysite.com/webhooks/crypto"
+    }
+)
+data = response.json()
+print(f"API Key: {data['data']['apiKey']['apiKey']}")
+print(f"HMAC Secret: {data['data']['apiKey']['hmacSecret']}")
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+axios.post('https://crypto.api.loveandpay.io/api/v1/merchants/register', {
+    companyName: 'My Company LLC',
+    email: 'merchant@example.com',
+    address: '123 Main Street, Suite 100',
+    city: 'New York',
+    country: 'USA',
+    webhookUrl: 'https://mysite.com/webhooks/crypto'
+}).then(res => {
+    console.log('API Key:', res.data.data.apiKey.apiKey);
+    console.log('HMAC Secret:', res.data.data.apiKey.hmacSecret);
+});
+```
+</RequestExample>
+
+<Warning>
+**Важно!** Сохраните `apiKey` и `hmacSecret` из ответа — они показываются **только один раз**!
+</Warning>
+
+---
+
+## Что дальше?
+
+После регистрации вы можете:
+
+1. **Настроить вебхук** — для получения уведомлений об оплатах
+2. **Создать счёт** — для приёма первого платежа
+3. **Проверить баланс** — для вывода полученных средств
+
+<CardGroup cols={2}>
+  <Card title="Создание счёта" icon="file-invoice-dollar" href="/api-reference/crypto/invoices">
+    Создайте первый криптовалютный счёт
+  </Card>
+  <Card title="Руководство" icon="book" href="/guides/crypto-payments">
+    Полное руководство по интеграции
+  </Card>
+</CardGroup>

@@ -28,6 +28,7 @@
               "guides/kyc-client-guide",
               "guides/employees",
               "guides/virtual-cards",
+              "guides/crypto-payments",
               "guides/sdk",
               "guides/infrastructure",
               "guides/server-errors",
@@ -87,6 +88,23 @@
               "api-reference/identy/validate",
               "api-reference/identy/upload",
               "api-reference/identy/categories"
+            ]
+          },
+          {
+            "group": "Crypto API (LoveCrypto)",
+            "pages": [
+              "api-reference/crypto/introduction",
+              "api-reference/crypto/merchants-register",
+              "api-reference/crypto/merchants",
+              "api-reference/crypto/invoices",
+              "api-reference/crypto/invoices-get",
+              "api-reference/crypto/invoices-list",
+              "api-reference/crypto/invoices-external",
+              "api-reference/crypto/transactions",
+              "api-reference/crypto/withdrawals-balance",
+              "api-reference/crypto/withdrawals-create",
+              "api-reference/crypto/withdrawals",
+              "api-reference/crypto/webhooks"
             ]
           }
         ]

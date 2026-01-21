@@ -1,0 +1,104 @@
+---
+title: 'Транзакции'
+description: 'API для просмотра блокчейн-транзакций'
+---
+
+## Список транзакций
+
+```bash
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/transactions?page=1&pageSize=20" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+### Query параметры
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| `page` | integer | 1 | Номер страницы |
+| `pageSize` | integer | 20 | Размер страницы |
+| `invoiceId` | uuid | — | Фильтр по счёту |
+
+### Ответ
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "invoiceId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "txHash": "ce1a930bc5bbfcd1127174070dc7aaa0fadc1c8f712e59ba354d068830dc49bb",
+        "fromAddress": "TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q",
+        "toAddress": "TDPWsYuCP8H5Q93Sk3yR3x5yEvPXSVjxJZ",
+        "amount": 100.50,
+        "currency": "USDT_TRC20",
+        "network": "Tron",
+        "status": "Confirmed",
+        "confirmations": 25,
+        "requiredConfirmations": 20,
+        "createdAt": "2026-01-21T20:10:00Z",
+        "confirmedAt": "2026-01-21T20:15:00Z"
+      }
+    ],
+    "totalCount": 50,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+
+---
+
+## Получение транзакции по ID
+
+```bash
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/transactions/{transactionId}" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+### Ответ
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "invoiceId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "txHash": "ce1a930bc5bbfcd1127174070dc7aaa0fadc1c8f712e59ba354d068830dc49bb",
+    "fromAddress": "TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q",
+    "toAddress": "TDPWsYuCP8H5Q93Sk3yR3x5yEvPXSVjxJZ",
+    "amount": 100.50,
+    "currency": "USDT_TRC20",
+    "network": "Tron",
+    "status": "Confirmed",
+    "confirmations": 25,
+    "requiredConfirmations": 20,
+    "blockNumber": 12345678,
+    "createdAt": "2026-01-21T20:10:00Z",
+    "confirmedAt": "2026-01-21T20:15:00Z"
+  }
+}
+```
+
+---
+
+## Статусы транзакции
+
+| Статус | Описание |
+|--------|----------|
+| `Pending` | Обнаружена, ожидает подтверждений |
+| `Confirmed` | Подтверждена |
+| `Failed` | Неуспешная |
+
+---
+
+## Просмотр в блокчейн-эксплорере
+
+По `txHash` вы можете проверить транзакцию в эксплорере:
+
+| Сеть | Эксплорер |
+|------|-----------|
+| Tron | `https://tronscan.org/#/transaction/{txHash}` |
+| Ethereum | `https://etherscan.io/tx/{txHash}` |
+| BSC | `https://bscscan.com/tx/{txHash}` |

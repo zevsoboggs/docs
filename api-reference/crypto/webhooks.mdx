@@ -1,0 +1,259 @@
+---
+title: 'Вебхуки'
+description: 'Уведомления о событиях платежей в реальном времени'
+---
+
+## Обзор
+
+Вебхуки отправляются на URL, указанный при регистрации мерчанта (`webhookUrl`).
+
+## Верификация подписи
+
+Все вебхуки подписываются HMAC-SHA256. Проверяйте заголовок `X-Webhook-Signature`:
+
+```python
+import hmac
+import hashlib
+
+def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
+    expected = hmac.new(
+        secret.encode(),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhook(payload, signature, secret) {
+    const expected = crypto
+        .createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex');
+    return crypto.timingSafeEqual(
+        Buffer.from(expected),
+        Buffer.from(signature)
+    );
+}
+```
+
+<Warning>
+Всегда верифицируйте подпись вебхука перед обработкой!
+</Warning>
+
+---
+
+## События
+
+### TransactionDetected
+
+Обнаружена новая транзакция для счёта (ещё не подтверждена).
+
+```json
+{
+  "eventType": "TransactionDetected",
+  "webhookId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "transaction": {
+    "id": "tx-123",
+    "txHash": "ce1a930bc5bbfcd1127174070dc7aaa0fadc1c8f712e59ba354d068830dc49bb",
+    "amount": 100.50,
+    "confirmations": 1,
+    "status": "Pending"
+  },
+  "invoice": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "invoiceNumber": "INV-20260121-ABC123",
+    "amount": 100.50,
+    "status": "PartiallyPaid"
+  }
+}
+```
+
+### TransactionConfirmed
+
+Транзакция достигла требуемого количества подтверждений.
+
+```json
+{
+  "eventType": "TransactionConfirmed",
+  "webhookId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "transaction": {
+    "id": "tx-123",
+    "txHash": "ce1a930bc5bbfcd1127174070dc7aaa0fadc1c8f712e59ba354d068830dc49bb",
+    "amount": 100.50,
+    "confirmations": 25,
+    "status": "Confirmed"
+  },
+  "invoice": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "invoiceNumber": "INV-20260121-ABC123",
+    "amount": 100.50,
+    "status": "Paid"
+  }
+}
+```
+
+### InvoicePaid
+
+Счёт полностью оплачен.
+
+```json
+{
+  "eventType": "InvoicePaid",
+  "webhookId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "invoice": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "invoiceNumber": "INV-20260121-ABC123",
+    "externalId": "order-12345",
+    "amount": 100.50,
+    "amountPaid": 100.50,
+    "currency": "USDT_TRC20",
+    "status": "Paid",
+    "paidAt": "2026-01-21T20:15:00Z",
+    "metadata": {
+      "orderId": "12345"
+    }
+  },
+  "transactions": [
+    {
+      "txHash": "ce1a930bc5bbfcd1127174070dc7aaa0fadc1c8f712e59ba354d068830dc49bb",
+      "amount": 100.50,
+      "confirmations": 25
+    }
+  ]
+}
+```
+
+### InvoiceExpired
+
+Счёт истёк без полной оплаты.
+
+```json
+{
+  "eventType": "InvoiceExpired",
+  "webhookId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "invoice": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "invoiceNumber": "INV-20260121-ABC123",
+    "amount": 100.50,
+    "amountPaid": 0,
+    "status": "Expired"
+  }
+}
+```
+
+---
+
+## Обработка вебхука
+
+### Express.js пример
+
+```javascript
+const express = require('express');
+const crypto = require('crypto');
+
+const app = express();
+
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+    const signature = req.headers['x-webhook-signature'];
+    const payload = req.body;
+
+    // Верификация подписи
+    const expected = crypto
+        .createHmac('sha256', process.env.HMAC_SECRET)
+        .update(payload)
+        .digest('hex');
+
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) {
+        return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    const event = JSON.parse(payload);
+
+    switch (event.eventType) {
+        case 'InvoicePaid':
+            console.log(`Счёт ${event.invoice.invoiceNumber} оплачен!`);
+            // Выполните бизнес-логику
+            break;
+        case 'InvoiceExpired':
+            console.log(`Счёт ${event.invoice.invoiceNumber} истёк`);
+            break;
+    }
+
+    res.json({ success: true });
+});
+```
+
+### Python Flask пример
+
+```python
+from flask import Flask, request, jsonify
+import hmac
+import hashlib
+import json
+import os
+
+app = Flask(__name__)
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    signature = request.headers.get('X-Webhook-Signature')
+    payload = request.data
+
+    # Верификация подписи
+    expected = hmac.new(
+        os.environ['HMAC_SECRET'].encode(),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        return jsonify({'error': 'Invalid signature'}), 401
+
+    event = json.loads(payload)
+
+    if event['eventType'] == 'InvoicePaid':
+        invoice = event['invoice']
+        print(f"Счёт {invoice['invoiceNumber']} оплачен!")
+        # Выполните бизнес-логику
+
+    return jsonify({'success': True})
+```
+
+---
+
+## Политика повторных попыток
+
+Если ваш сервер не отвечает кодом `2xx`, вебхук будет отправлен повторно:
+
+| Попытка | Интервал |
+|---------|----------|
+| 1 | Немедленно |
+| 2 | 1 минута |
+| 3 | 5 минут |
+| 4 | 30 минут |
+| 5 | 2 часа |
+| 6 | 24 часа |
+
+После 6 неудачных попыток вебхук помечается как неудачный.
+
+---
+
+## Обновление Webhook URL
+
+```bash
+curl -X PUT "https://crypto.api.loveandpay.io/api/v1/merchants/webhook" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: 1706400000" \
+  -H "X-Signature: ваша_подпись" \
+  -d '{
+    "webhookUrl": "https://mysite.com/webhooks/crypto"
+  }'
+```
+
+<Note>
+Требуется HMAC подпись для обновления webhook URL.
+</Note>

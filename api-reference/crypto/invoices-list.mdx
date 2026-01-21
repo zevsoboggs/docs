@@ -1,0 +1,107 @@
+---
+title: 'Список счетов'
+description: 'Получение списка счетов с пагинацией и фильтрами'
+api: 'GET https://crypto.api.loveandpay.io/api/v1/invoices'
+---
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+## Query параметры
+
+<ParamField query="page" type="integer" default="1">
+  Номер страницы
+</ParamField>
+
+<ParamField query="pageSize" type="integer" default="20">
+  Размер страницы (максимум 100)
+</ParamField>
+
+<ParamField query="status" type="string">
+  Фильтр по статусу: `Pending`, `PartiallyPaid`, `Paid`, `Overpaid`, `Expired`, `Cancelled`
+</ParamField>
+
+<ParamField query="currency" type="string">
+  Фильтр по валюте: `USDT_TRC20`, `USDT_ERC20`, `USDC_ERC20`, `USDT_BEP20`, `USDC_BEP20`
+</ParamField>
+
+<ParamField query="fromDate" type="string">
+  Начало периода (ISO 8601), например `2026-01-01T00:00:00Z`
+</ParamField>
+
+<ParamField query="toDate" type="string">
+  Конец периода (ISO 8601), например `2026-01-31T23:59:59Z`
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "invoiceNumber": "INV-20260121-ABC123",
+        "externalId": "order-12345",
+        "amount": 100.50,
+        "amountPaid": 100.50,
+        "currency": "USDT_TRC20",
+        "status": "Paid",
+        "createdAt": "2026-01-21T20:00:00Z",
+        "paidAt": "2026-01-21T20:15:00Z"
+      },
+      {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "invoiceNumber": "INV-20260121-DEF456",
+        "amount": 50.00,
+        "currency": "USDT_TRC20",
+        "status": "Pending",
+        "createdAt": "2026-01-21T21:00:00Z"
+      }
+    ],
+    "totalCount": 150,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/invoices?page=1&pageSize=20&status=Paid" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://crypto.api.loveandpay.io/api/v1/invoices",
+    headers={"X-Api-Key": "lc_ваш_ключ"},
+    params={
+        "page": 1,
+        "pageSize": 20,
+        "status": "Paid",
+        "currency": "USDT_TRC20"
+    }
+)
+print(response.json())
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+axios.get('https://crypto.api.loveandpay.io/api/v1/invoices', {
+    headers: { 'X-Api-Key': 'lc_ваш_ключ' },
+    params: {
+        page: 1,
+        pageSize: 20,
+        status: 'Paid'
+    }
+}).then(res => console.log(res.data));
+```
+</RequestExample>

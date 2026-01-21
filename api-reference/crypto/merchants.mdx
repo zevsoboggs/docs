@@ -1,0 +1,187 @@
+---
+title: 'Мерчанты'
+description: 'API для регистрации и управления аккаунтом мерчанта'
+---
+
+## Регистрация мерчанта
+
+<Note>
+Не требует аутентификации.
+</Note>
+
+```bash
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/merchants/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyName": "My Company LLC",
+    "email": "merchant@example.com",
+    "address": "123 Main Street, Suite 100",
+    "city": "New York",
+    "country": "USA",
+    "webhookUrl": "https://mysite.com/webhooks/crypto"
+  }'
+```
+
+### Параметры
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `companyName` | string | Да | Название компании |
+| `email` | string | Да | Контактный email |
+| `address` | string | Да | Адрес |
+| `city` | string | Нет | Город |
+| `country` | string | Нет | Страна |
+| `webhookUrl` | string | Нет | URL для вебхуков |
+
+### Ответ
+
+```json
+{
+  "success": true,
+  "data": {
+    "merchantId": "653260c2-5acf-4ca6-9cc7-d761cffc5e3e",
+    "companyName": "My Company LLC",
+    "email": "merchant@example.com",
+    "status": "Active",
+    "apiKey": {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "apiKey": "lc_H8BLURMH0Vq241DqzatqOHajKUlBQERF",
+      "hmacSecret": "hoKHB8WoFQH2oFFK8HcDakLo7eLAViH5LQDgXEREIMP2dwZooWXng7u36Prk7VUo",
+      "name": "Default API Key",
+      "createdAt": "2026-01-21T20:00:00Z"
+    },
+    "createdAt": "2026-01-21T20:00:00Z"
+  }
+}
+```
+
+<Warning>
+Сохраните `apiKey` и `hmacSecret` — они показываются только один раз!
+</Warning>
+
+---
+
+## Профиль мерчанта
+
+```bash
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/merchants/profile" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+### Ответ
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "653260c2-5acf-4ca6-9cc7-d761cffc5e3e",
+    "companyName": "My Company LLC",
+    "email": "merchant@example.com",
+    "address": "123 Main Street",
+    "city": "New York",
+    "country": "USA",
+    "webhookUrl": "https://mysite.com/webhooks/crypto",
+    "status": "Active",
+    "feePercent": 1.0,
+    "isTestMode": false,
+    "createdAt": "2026-01-21T20:00:00Z"
+  }
+}
+```
+
+---
+
+## Статистика мерчанта
+
+```bash
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/merchants/stats" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+### Ответ
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalInvoices": 150,
+    "paidInvoices": 120,
+    "pendingInvoices": 10,
+    "expiredInvoices": 20,
+    "totalReceived": 15000.50,
+    "totalFees": 150.005,
+    "availableBalance": 14850.495
+  }
+}
+```
+
+---
+
+## Обновление Webhook URL
+
+<Note>
+Требуется HMAC подпись.
+</Note>
+
+```bash
+curl -X PUT "https://crypto.api.loveandpay.io/api/v1/merchants/webhook" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: 1706400000" \
+  -H "X-Signature: ваша_подпись" \
+  -d '{
+    "webhookUrl": "https://mysite.com/webhooks/crypto"
+  }'
+```
+
+### Ответ
+
+```json
+{
+  "success": true,
+  "message": "Webhook URL updated successfully"
+}
+```
+
+---
+
+## API ключи
+
+### Список ключей
+
+```bash
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/api-keys" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+### Создание нового ключа
+
+```bash
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/api-keys" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -d '{
+    "name": "Production Key",
+    "isTestKey": false
+  }'
+```
+
+### Перегенерация HMAC секрета
+
+<Note>
+Требуется HMAC подпись.
+</Note>
+
+```bash
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/api-keys/regenerate" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: 1706400000" \
+  -H "X-Signature: ваша_подпись"
+```
+
+### Отзыв ключа
+
+```bash
+curl -X DELETE "https://crypto.api.loveandpay.io/api/v1/api-keys/{keyId}" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```

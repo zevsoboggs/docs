@@ -1,0 +1,87 @@
+---
+title: 'Баланс'
+description: 'Получение баланса мерчанта по всем валютам'
+api: 'GET https://crypto.api.loveandpay.io/api/v1/withdrawals/balance'
+---
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "balances": [
+      {
+        "currency": "USDT_TRC20",
+        "currencyName": "USDT_TRC20",
+        "network": "Tron",
+        "networkName": "Tron",
+        "available": 1500.50,
+        "pending": 100.00,
+        "total": 1600.50
+      },
+      {
+        "currency": "USDT_ERC20",
+        "currencyName": "USDT_ERC20",
+        "network": "Ethereum",
+        "networkName": "Ethereum",
+        "available": 500.00,
+        "pending": 0,
+        "total": 500.00
+      },
+      {
+        "currency": "USDT_BEP20",
+        "currencyName": "USDT_BEP20",
+        "network": "BinanceSmartChain",
+        "networkName": "BNB Smart Chain",
+        "available": 250.25,
+        "pending": 50.00,
+        "total": 300.25
+      }
+    ],
+    "totalUsdValue": 2400.75
+  }
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/withdrawals/balance" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://crypto.api.loveandpay.io/api/v1/withdrawals/balance",
+    headers={"X-Api-Key": "lc_ваш_ключ"}
+)
+print(response.json())
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+axios.get('https://crypto.api.loveandpay.io/api/v1/withdrawals/balance', {
+    headers: { 'X-Api-Key': 'lc_ваш_ключ' }
+}).then(res => console.log(res.data));
+```
+</RequestExample>
+
+---
+
+## Описание полей
+
+| Поле | Описание |
+|------|----------|
+| `available` | Доступно для вывода (подтверждённые средства) |
+| `pending` | В ожидании подтверждения блокчейном |
+| `total` | Общий баланс (available + pending) |
+| `totalUsdValue` | Общая сумма в USD по всем валютам |

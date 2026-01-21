@@ -1,0 +1,98 @@
+---
+title: 'Получение счёта'
+description: 'Получение информации о счёте по ID'
+api: 'GET https://crypto.api.loveandpay.io/api/v1/invoices/{invoiceId}'
+---
+
+## Параметры пути
+
+<ParamField path="invoiceId" type="string" required>
+  UUID счёта, например `f47ac10b-58cc-4372-a567-0e02b2c3d479`
+</ParamField>
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "invoiceNumber": "INV-20260121-ABC123",
+    "externalId": "order-12345",
+    "amount": 100.50,
+    "amountPaid": 100.50,
+    "currency": "USDT_TRC20",
+    "paymentAddress": "TDPWsYuCP8H5Q93Sk3yR3x5yEvPXSVjxJZ",
+    "status": "Paid",
+    "description": "Оплата заказа #12345",
+    "customerEmail": "customer@example.com",
+    "metadata": {
+      "orderId": "12345"
+    },
+    "transactions": [
+      {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "txHash": "ce1a930bc5bbfcd1127174070dc7aaa0fadc1c8f712e59ba354d068830dc49bb",
+        "amount": 100.50,
+        "confirmations": 25,
+        "status": "Confirmed"
+      }
+    ],
+    "requiredConfirmations": 20,
+    "createdAt": "2026-01-21T20:00:00Z",
+    "expiresAt": "2026-01-21T20:30:00Z",
+    "paidAt": "2026-01-21T20:15:00Z"
+  }
+}
+```
+
+```json 404
+{
+  "success": false,
+  "message": "Invoice not found"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://crypto.api.loveandpay.io/api/v1/invoices/f47ac10b-58cc-4372-a567-0e02b2c3d479" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://crypto.api.loveandpay.io/api/v1/invoices/f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    headers={"X-Api-Key": "lc_ваш_ключ"}
+)
+print(response.json())
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+axios.get('https://crypto.api.loveandpay.io/api/v1/invoices/f47ac10b-58cc-4372-a567-0e02b2c3d479', {
+    headers: { 'X-Api-Key': 'lc_ваш_ключ' }
+}).then(res => console.log(res.data));
+```
+</RequestExample>
+
+---
+
+## Статусы счёта
+
+| Статус | Описание |
+|--------|----------|
+| `Pending` | Ожидает оплаты |
+| `PartiallyPaid` | Частичная оплата получена |
+| `Paid` | Полностью оплачен |
+| `Overpaid` | Получено больше требуемой суммы |
+| `Expired` | Истёк срок оплаты |
+| `Cancelled` | Отменён |

@@ -12,8 +12,8 @@ Love&Pay постоянно развивается. Вот что появитс
   <Card title="MCP Сервер" icon="robot">
     Интеграции с помощью ИИ-агентов
   </Card>
-  <Card title="Приём криптовалюты" icon="bitcoin">
-    Новый способ оплаты для мерчантов
+  <Card title="Приём криптовалюты" icon="bitcoin" href="/guides/crypto-payments">
+    Уже доступно! USDT/USDC на TRC20, ERC20, BEP20
   </Card>
 </CardGroup>
 
@@ -79,26 +79,26 @@ Love&Pay постоянно развивается. Вот что появитс
 
 ## Приём криптовалюты
 
-<Info>
-**Статус:** Скоро
-</Info>
+<Check>
+**Статус:** Доступно!
+</Check>
 
-Для мерчантов станет доступен **приём платежей в криптовалюте** — ещё один удобный способ получать оплату от клиентов.
+Для мерчантов уже доступен **приём платежей в криптовалюте** через LoveCrypto API.
 
-### Планируемые возможности
+### Возможности
 
 <CardGroup cols={2}>
-  <Card title="Популярные криптовалюты" icon="coins">
-    USDT, USDC, BTC, ETH и другие
+  <Card title="USDT и USDC" icon="coins">
+    На сетях TRC20, ERC20, BEP20
   </Card>
-  <Card title="Автоконвертация" icon="arrows-rotate">
-    Автоматическая конвертация в фиат или стейблкоины
+  <Card title="Низкие комиссии" icon="percent">
+    Всего 1% на приём и вывод
   </Card>
-  <Card title="Единый API" icon="code">
-    Тот же API — просто новый способ оплаты
+  <Card title="Простой API" icon="code">
+    REST API с HMAC подписью
   </Card>
-  <Card title="QR-коды" icon="qrcode">
-    Удобная оплата сканированием QR-кода
+  <Card title="Вебхуки" icon="bell">
+    Уведомления о платежах в реальном времени
   </Card>
 </CardGroup>
 
@@ -126,19 +126,19 @@ Love&Pay постоянно развивается. Вот что появитс
   </Step>
 </Steps>
 
-```typescript
-// Пример создания счёта с криптооплатой (скоро)
-const invoice = await client.invoices.create({
-  amount: 100,
-  currency: 'USD',
-  paymentMethods: ['sbp', 'crypto'], // СБП + криптовалюта
-  description: 'Оплата заказа #12345',
-});
+```bash
+# Создание криптовалютного счёта
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/invoices" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: 1706400000" \
+  -H "X-Signature: ваша_подпись" \
+  -d '{"amount": 100, "currency": "USDT_TRC20"}'
 ```
 
-<Note>
-Хотите узнать первыми о запуске криптоплатежей? Подпишитесь на наш [Telegram-канал](https://t.me/loveandpay_status).
-</Note>
+<Card title="Документация Crypto API" icon="book" href="/guides/crypto-payments">
+  Полное руководство по интеграции криптоплатежей
+</Card>
 
 ---
 

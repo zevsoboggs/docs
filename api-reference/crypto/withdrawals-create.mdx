@@ -1,0 +1,179 @@
+---
+title: 'Создание вывода'
+description: 'Создание запроса на вывод криптовалюты'
+api: 'POST https://crypto.api.loveandpay.io/api/v1/withdrawals'
+---
+
+<Note>
+Требуется HMAC подпись. Комиссия за вывод: **1%**.
+</Note>
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ParamField header="X-Timestamp" type="string" required>
+  Unix timestamp в секундах
+</ParamField>
+
+<ParamField header="X-Signature" type="string" required>
+  Base64 HMAC-SHA256 подпись. Формат payload: `{timestamp}.POST./api/v1/withdrawals{body}`
+</ParamField>
+
+## Тело запроса
+
+<ParamField body="toAddress" type="string" required>
+  Адрес кошелька получателя. Например: `TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q` (TRC20)
+</ParamField>
+
+<ParamField body="amount" type="number" required>
+  Сумма вывода (например: `100.00`)
+</ParamField>
+
+<ParamField body="currency" type="string" required>
+  Код валюты: `USDT_TRC20`, `USDT_ERC20`, `USDC_ERC20`, `USDT_BEP20`, `USDC_BEP20`
+</ParamField>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "id": "ffe03a8b-3726-4227-963c-4136e0fa6213",
+    "withdrawalNumber": "WD-20260121-ABC123",
+    "toAddress": "TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q",
+    "amount": 100.00,
+    "fee": 1.00,
+    "netAmount": 99.00,
+    "currency": "USDT_TRC20",
+    "network": "Tron",
+    "status": "Pending",
+    "createdAt": "2026-01-21T20:00:00Z"
+  },
+  "message": "Withdrawal request created successfully"
+}
+```
+
+```json 400
+{
+  "success": false,
+  "message": "Insufficient balance. Available: 50.00 USDT_TRC20"
+}
+```
+
+```json 401
+{
+  "success": false,
+  "message": "Invalid HMAC signature",
+  "code": "INVALID_SIGNATURE"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/withdrawals" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: 1706400000" \
+  -H "X-Signature: ваша_подпись" \
+  -d '{
+    "toAddress": "TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q",
+    "amount": 100.00,
+    "currency": "USDT_TRC20"
+  }'
+```
+
+```python Python
+import requests
+import json
+import hmac
+import hashlib
+import base64
+import time
+
+api_key = "lc_ваш_ключ"
+hmac_secret = "ваш_hmac_secret"
+
+body = {
+    "toAddress": "TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q",
+    "amount": 100.00,
+    "currency": "USDT_TRC20"
+}
+
+body_json = json.dumps(body, separators=(',', ':'))
+timestamp = int(time.time())
+payload = f"{timestamp}.POST./api/v1/withdrawals{body_json}"
+signature = base64.b64encode(
+    hmac.new(hmac_secret.encode(), payload.encode(), hashlib.sha256).digest()
+).decode()
+
+response = requests.post(
+    "https://crypto.api.loveandpay.io/api/v1/withdrawals",
+    headers={
+        "Content-Type": "application/json",
+        "X-Api-Key": api_key,
+        "X-Timestamp": str(timestamp),
+        "X-Signature": signature
+    },
+    data=body_json
+)
+print(response.json())
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+const axios = require('axios');
+
+const apiKey = 'lc_ваш_ключ';
+const hmacSecret = 'ваш_hmac_secret';
+
+const body = {
+    toAddress: 'TQaqeXyS14drW5CB7HRo87yLPZjNvbGs1q',
+    amount: 100.00,
+    currency: 'USDT_TRC20'
+};
+
+const bodyJson = JSON.stringify(body);
+const timestamp = Math.floor(Date.now() / 1000);
+const payload = `${timestamp}.POST./api/v1/withdrawals${bodyJson}`;
+const signature = crypto
+    .createHmac('sha256', hmacSecret)
+    .update(payload)
+    .digest('base64');
+
+axios.post('https://crypto.api.loveandpay.io/api/v1/withdrawals', body, {
+    headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': apiKey,
+        'X-Timestamp': timestamp.toString(),
+        'X-Signature': signature
+    }
+}).then(res => console.log(res.data));
+```
+</RequestExample>
+
+---
+
+## Комиссия
+
+При выводе удерживается комиссия **1%**:
+
+| Сумма вывода | Комиссия | Получите |
+|--------------|----------|----------|
+| 100 USDT | 1 USDT | 99 USDT |
+| 500 USDT | 5 USDT | 495 USDT |
+| 1000 USDT | 10 USDT | 990 USDT |
+
+---
+
+## Статусы вывода
+
+| Статус | Описание |
+|--------|----------|
+| `Pending` | Запрос создан, ожидает обработки |
+| `Processing` | Транзакция отправлена в блокчейн |
+| `Completed` | Вывод успешно завершён |
+| `Failed` | Ошибка при выводе |

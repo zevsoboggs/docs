@@ -1,0 +1,208 @@
+---
+title: 'Создание счёта'
+description: 'Создание нового криптовалютного счёта'
+api: 'POST https://crypto.api.loveandpay.io/api/v1/invoices'
+---
+
+<Note>
+Требуется HMAC подпись. Передайте заголовки `X-Timestamp` и `X-Signature`.
+</Note>
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ, например `lc_H8BLURMH0Vq241DqzatqOHajKUlBQERF`
+</ParamField>
+
+<ParamField header="X-Timestamp" type="string" required>
+  Unix timestamp в секундах
+</ParamField>
+
+<ParamField header="X-Signature" type="string" required>
+  Base64 HMAC-SHA256 подпись. Формат payload: `{timestamp}.POST./api/v1/invoices{body}`
+</ParamField>
+
+## Тело запроса
+
+<ParamField body="amount" type="number" required>
+  Сумма платежа (например: `100.50`)
+</ParamField>
+
+<ParamField body="currency" type="string" required>
+  Код валюты: `USDT_TRC20`, `USDT_ERC20`, `USDC_ERC20`, `USDT_BEP20`, `USDC_BEP20`
+</ParamField>
+
+<ParamField body="externalId" type="string">
+  Ваш уникальный ID заказа
+</ParamField>
+
+<ParamField body="description" type="string">
+  Описание платежа
+</ParamField>
+
+<ParamField body="customerEmail" type="string">
+  Email клиента
+</ParamField>
+
+<ParamField body="customerName" type="string">
+  Имя клиента
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Произвольные данные (ключ-значение)
+</ParamField>
+
+<ParamField body="successUrl" type="string">
+  URL редиректа после успешной оплаты
+</ParamField>
+
+<ParamField body="cancelUrl" type="string">
+  URL при отмене платежа
+</ParamField>
+
+<ParamField body="expirationMinutes" type="integer" default="60">
+  Время жизни счёта в минутах
+</ParamField>
+
+<ParamField body="requiredConfirmations" type="integer">
+  Требуемое количество подтверждений блокчейна
+</ParamField>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "invoiceNumber": "INV-20260121-ABC123",
+    "externalId": "order-12345",
+    "amount": 100.50,
+    "amountPaid": 0,
+    "currency": "USDT_TRC20",
+    "paymentAddress": "TDPWsYuCP8H5Q93Sk3yR3x5yEvPXSVjxJZ",
+    "status": "Pending",
+    "description": "Оплата заказа #12345",
+    "requiredConfirmations": 20,
+    "createdAt": "2026-01-21T20:00:00Z",
+    "expiresAt": "2026-01-21T20:30:00Z"
+  }
+}
+```
+
+```json 400
+{
+  "success": false,
+  "message": "An invoice with this external ID already exists"
+}
+```
+
+```json 401
+{
+  "success": false,
+  "message": "Invalid HMAC signature",
+  "code": "INVALID_SIGNATURE"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://crypto.api.loveandpay.io/api/v1/invoices" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: 1706400000" \
+  -H "X-Signature: 5YG22lbuYpcCCru65JJjVRX9scVEZVVg6B291Cmyl0c=" \
+  -d '{
+    "amount": 100.50,
+    "currency": "USDT_TRC20",
+    "externalId": "order-12345",
+    "description": "Оплата заказа"
+  }'
+```
+
+```python Python
+import requests
+import json
+import hmac
+import hashlib
+import base64
+import time
+
+api_key = "lc_ваш_ключ"
+hmac_secret = "ваш_hmac_secret"
+
+body = {
+    "amount": 100.50,
+    "currency": "USDT_TRC20",
+    "externalId": "order-12345"
+}
+
+body_json = json.dumps(body, separators=(',', ':'))
+timestamp = int(time.time())
+payload = f"{timestamp}.POST./api/v1/invoices{body_json}"
+signature = base64.b64encode(
+    hmac.new(hmac_secret.encode(), payload.encode(), hashlib.sha256).digest()
+).decode()
+
+response = requests.post(
+    "https://crypto.api.loveandpay.io/api/v1/invoices",
+    headers={
+        "Content-Type": "application/json",
+        "X-Api-Key": api_key,
+        "X-Timestamp": str(timestamp),
+        "X-Signature": signature
+    },
+    data=body_json
+)
+print(response.json())
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+const axios = require('axios');
+
+const apiKey = 'lc_ваш_ключ';
+const hmacSecret = 'ваш_hmac_secret';
+
+const body = {
+    amount: 100.50,
+    currency: 'USDT_TRC20',
+    externalId: 'order-12345'
+};
+
+const bodyJson = JSON.stringify(body);
+const timestamp = Math.floor(Date.now() / 1000);
+const payload = `${timestamp}.POST./api/v1/invoices${bodyJson}`;
+const signature = crypto
+    .createHmac('sha256', hmacSecret)
+    .update(payload)
+    .digest('base64');
+
+axios.post('https://crypto.api.loveandpay.io/api/v1/invoices', body, {
+    headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': apiKey,
+        'X-Timestamp': timestamp.toString(),
+        'X-Signature': signature
+    }
+}).then(res => console.log(res.data));
+```
+</RequestExample>
+
+---
+
+## Генерация HMAC подписи
+
+Формат payload для подписи:
+```
+{timestamp}.{METHOD}.{path}{body}
+```
+
+Пример:
+```
+1706400000.POST./api/v1/invoices{"amount":100.50,"currency":"USDT_TRC20"}
+```
+
+<Warning>
+Запрос должен быть выполнен в течение **5 минут** от указанного timestamp.
+</Warning>
