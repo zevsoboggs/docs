@@ -30,6 +30,7 @@
               "guides/sdk",
               "guides/infrastructure",
               "guides/server-errors",
+              "guides/status",
               "guides/faq"
             ]
           }
