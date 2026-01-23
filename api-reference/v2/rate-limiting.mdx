@@ -1,0 +1,143 @@
+---
+title: 'Rate Limiting'
+description: 'Ограничения и защита от перегрузки'
+---
+
+## Лимиты запросов
+
+API v2 имеет ограничения на количество запросов для защиты от перегрузки:
+
+| Период | Лимит | Описание |
+|--------|-------|----------|
+| Минута | 100 | Максимум запросов в минуту |
+| Час | 1000 | Максимум запросов в час |
+
+<Note>
+При необходимости увеличения лимитов обратитесь в поддержку: [support@loveandpay.io](mailto:support@loveandpay.io)
+</Note>
+
+## Заголовки ответа
+
+Каждый ответ API содержит заголовки с информацией о лимитах:
+
+| Заголовок | Описание |
+|-----------|----------|
+| `X-RateLimit-Limit-Minute` | Лимит запросов в минуту |
+| `X-RateLimit-Remaining-Minute` | Оставшееся количество в текущую минуту |
+| `X-RateLimit-Limit-Hour` | Лимит запросов в час |
+| `X-RateLimit-Remaining-Hour` | Оставшееся количество в текущий час |
+| `X-RateLimit-Reset` | Время сброса лимита (ISO 8601) |
+| `Retry-After` | Секунды до возможности повтора (только при 429) |
+
+## Превышение лимита
+
+При превышении лимита API вернёт статус `429 Too Many Requests`:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Превышен лимит запросов"
+  }
+}
+```
+
+### Обработка
+
+```javascript
+async function makeRequest(url, options) {
+  const response = await fetch(url, options);
+
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    console.log(`Rate limit exceeded. Retry after ${retryAfter} seconds`);
+
+    // Exponential backoff
+    await sleep(retryAfter * 1000);
+    return makeRequest(url, options);
+  }
+
+  return response.json();
+}
+```
+
+---
+
+## Защита от циклических запросов
+
+API v2 автоматически обнаруживает и блокирует повторяющиеся запросы:
+
+### Правила
+
+| Условие | Последствие |
+|---------|-------------|
+| Более 10 идентичных запросов в минуту | Временная блокировка на 15 минут |
+| 3 временных блокировки | Перманентная блокировка |
+
+### Что считается идентичным запросом?
+
+- Тот же метод (GET, POST, etc.)
+- Тот же path
+- То же тело запроса (для POST/PUT)
+
+### Ответ при блокировке
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CYCLE_BLOCKED",
+    "message": "Временная блокировка из-за циклических запросов",
+    "details": {
+      "blockedUntil": "2024-01-23T12:15:00.000Z",
+      "reason": "Too many identical requests"
+    }
+  }
+}
+```
+
+<Warning>
+**Перманентная блокировка** требует обращения в поддержку для разблокировки.
+</Warning>
+
+## Лучшие практики
+
+<CardGroup cols={2}>
+  <Card title="Кэширование" icon="database">
+    Кэшируйте часто запрашиваемые данные
+  </Card>
+  <Card title="Batch операции" icon="layer-group">
+    Используйте batch endpoints для массовых операций
+  </Card>
+  <Card title="Вебхуки" icon="bell">
+    Подписывайтесь на события вместо polling'а
+  </Card>
+  <Card title="Exponential backoff" icon="clock">
+    При 429 увеличивайте интервал между попытками
+  </Card>
+</CardGroup>
+
+### Пример с exponential backoff
+
+```javascript
+async function requestWithBackoff(url, options, maxRetries = 5) {
+  let retries = 0;
+
+  while (retries < maxRetries) {
+    const response = await fetch(url, options);
+
+    if (response.status !== 429) {
+      return response.json();
+    }
+
+    const retryAfter = response.headers.get('Retry-After') || Math.pow(2, retries);
+    console.log(`Retry ${retries + 1}/${maxRetries} after ${retryAfter}s`);
+
+    await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+    retries++;
+  }
+
+  throw new Error('Max retries exceeded');
+}
+```

@@ -1,0 +1,342 @@
+---
+title: 'Аутентификация'
+description: 'HMAC-SHA256 аутентификация в API v2'
+---
+
+## Обзор
+
+API v2 использует **HMAC-SHA256 подпись** для аутентификации всех запросов. Это обеспечивает:
+
+- Подтверждение подлинности запроса
+- Защиту от replay-атак
+- Целостность передаваемых данных
+
+## Обязательные заголовки
+
+| Заголовок | Тип | Описание |
+|-----------|-----|----------|
+| `x-api-key` | string | Ваш API ключ (начинается с `pk_live_` или `pk_test_`) |
+| `x-timestamp` | string | Unix timestamp в **миллисекундах** |
+| `x-signature` | string | HMAC-SHA256 подпись в hex формате |
+
+<Warning>
+**Важно!** Timestamp должен быть в **миллисекундах** (13 цифр), а не в секундах.
+Запросы с timestamp старше **5 минут** будут отклонены.
+</Warning>
+
+## Алгоритм генерации подписи
+
+```
+signature = HMAC-SHA256(secretKey, METHOD + PATH + TIMESTAMP + SHA256(BODY))
+```
+
+### Пошаговый процесс
+
+<Steps>
+  <Step title="Вычислите SHA256 хеш тела запроса">
+    Для GET запросов используйте пустую строку
+  </Step>
+  <Step title="Сформируйте строку для подписи">
+    Конкатенация: `METHOD + PATH + TIMESTAMP + BODY_HASH`
+  </Step>
+  <Step title="Подпишите строку">
+    HMAC-SHA256 используя ваш секретный ключ
+  </Step>
+  <Step title="Передайте в заголовке">
+    Результат в hex формате в `x-signature`
+  </Step>
+</Steps>
+
+<Note>
+**PATH** в подписи **не включает** query параметры!
+Правильно: `/api/v2/invoices`
+Неправильно: `/api/v2/invoices?limit=10`
+</Note>
+
+## Примеры кода
+
+<CodeGroup>
+
+```javascript JavaScript
+const crypto = require('crypto');
+
+const API_KEY = 'pk_live_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+const SECRET_KEY = 'sk_live_your_secret_key_here';
+
+function generateSignature(secretKey, method, path, timestamp, body = '') {
+  // 1. Вычислить SHA256 хеш тела
+  const bodyHash = crypto.createHash('sha256').update(body).digest('hex');
+
+  // 2. Сформировать строку для подписи
+  const message = `${method.toUpperCase()}${path}${timestamp}${bodyHash}`;
+
+  // 3. Подписать HMAC-SHA256
+  return crypto.createHmac('sha256', secretKey).update(message).digest('hex');
+}
+
+// Пример: создание счёта
+async function createInvoice() {
+  const timestamp = Date.now().toString();
+  const method = 'POST';
+  const path = '/api/v2/invoices';
+  const body = JSON.stringify({
+    amount: 1500.50,
+    description: 'Оплата заказа #12345'
+  });
+
+  const signature = generateSignature(SECRET_KEY, method, path, timestamp, body);
+
+  const response = await fetch('https://loveandpay.io' + path, {
+    method: method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY,
+      'x-timestamp': timestamp,
+      'x-signature': signature
+    },
+    body: body
+  });
+
+  return response.json();
+}
+
+// Пример: получение списка счетов (GET запрос)
+async function getInvoices() {
+  const timestamp = Date.now().toString();
+  const method = 'GET';
+  const path = '/api/v2/invoices'; // Без query параметров!
+
+  const signature = generateSignature(SECRET_KEY, method, path, timestamp, '');
+
+  const response = await fetch('https://loveandpay.io' + path + '?limit=50', {
+    method: method,
+    headers: {
+      'x-api-key': API_KEY,
+      'x-timestamp': timestamp,
+      'x-signature': signature
+    }
+  });
+
+  return response.json();
+}
+```
+
+```python Python
+import hashlib
+import hmac
+import time
+import requests
+import json
+
+API_KEY = 'pk_live_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+SECRET_KEY = 'sk_live_your_secret_key_here'
+
+def generate_signature(secret_key, method, path, timestamp, body=''):
+    # 1. Вычислить SHA256 хеш тела
+    body_hash = hashlib.sha256(body.encode()).hexdigest()
+
+    # 2. Сформировать строку для подписи
+    message = f"{method.upper()}{path}{timestamp}{body_hash}"
+
+    # 3. Подписать HMAC-SHA256
+    return hmac.new(
+        secret_key.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+# Пример: создание счёта
+def create_invoice():
+    timestamp = str(int(time.time() * 1000))  # миллисекунды!
+    method = 'POST'
+    path = '/api/v2/invoices'
+    body = json.dumps({
+        'amount': 1500.50,
+        'description': 'Оплата заказа #12345'
+    })
+
+    signature = generate_signature(SECRET_KEY, method, path, timestamp, body)
+
+    response = requests.post(
+        'https://loveandpay.io' + path,
+        headers={
+            'Content-Type': 'application/json',
+            'x-api-key': API_KEY,
+            'x-timestamp': timestamp,
+            'x-signature': signature
+        },
+        data=body
+    )
+
+    return response.json()
+
+# Пример: получение списка счетов
+def get_invoices():
+    timestamp = str(int(time.time() * 1000))
+    method = 'GET'
+    path = '/api/v2/invoices'
+
+    signature = generate_signature(SECRET_KEY, method, path, timestamp, '')
+
+    response = requests.get(
+        'https://loveandpay.io' + path,
+        params={'limit': 50},
+        headers={
+            'x-api-key': API_KEY,
+            'x-timestamp': timestamp,
+            'x-signature': signature
+        }
+    )
+
+    return response.json()
+```
+
+```php PHP
+<?php
+
+$API_KEY = 'pk_live_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+$SECRET_KEY = 'sk_live_your_secret_key_here';
+
+function generateSignature($secretKey, $method, $path, $timestamp, $body = '') {
+    // 1. Вычислить SHA256 хеш тела
+    $bodyHash = hash('sha256', $body);
+
+    // 2. Сформировать строку для подписи
+    $message = strtoupper($method) . $path . $timestamp . $bodyHash;
+
+    // 3. Подписать HMAC-SHA256
+    return hash_hmac('sha256', $message, $secretKey);
+}
+
+// Пример: создание счёта
+function createInvoice() {
+    global $API_KEY, $SECRET_KEY;
+
+    $timestamp = (string)(round(microtime(true) * 1000)); // миллисекунды
+    $method = 'POST';
+    $path = '/api/v2/invoices';
+    $body = json_encode([
+        'amount' => 1500.50,
+        'description' => 'Оплата заказа #12345'
+    ]);
+
+    $signature = generateSignature($SECRET_KEY, $method, $path, $timestamp, $body);
+
+    $ch = curl_init('https://loveandpay.io' . $path);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'x-api-key: ' . $API_KEY,
+        'x-timestamp: ' . $timestamp,
+        'x-signature: ' . $signature
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    return json_decode($response, true);
+}
+?>
+```
+
+```bash cURL
+#!/bin/bash
+
+API_KEY="pk_live_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+SECRET_KEY="sk_live_your_secret_key_here"
+TIMESTAMP=$(date +%s%3N)  # миллисекунды
+METHOD="POST"
+PATH="/api/v2/invoices"
+BODY='{"amount":1500.50,"description":"Оплата заказа #12345"}'
+
+# 1. Вычислить SHA256 хеш тела
+BODY_HASH=$(echo -n "$BODY" | sha256sum | cut -d' ' -f1)
+
+# 2. Сформировать строку для подписи
+MESSAGE="${METHOD}${PATH}${TIMESTAMP}${BODY_HASH}"
+
+# 3. Подписать HMAC-SHA256
+SIGNATURE=$(echo -n "$MESSAGE" | openssl dgst -sha256 -hmac "$SECRET_KEY" | cut -d' ' -f2)
+
+# Отправить запрос
+curl -X POST "https://loveandpay.io${PATH}" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: ${API_KEY}" \
+  -H "x-timestamp: ${TIMESTAMP}" \
+  -H "x-signature: ${SIGNATURE}" \
+  -d "$BODY"
+```
+
+</CodeGroup>
+
+## Получение ключей
+
+1. Войдите в [Панель управления](https://loveandpay.io/dashboard)
+2. Перейдите в **Настройки** → **API**
+3. Скопируйте ваш `API Key` (публичный)
+4. Нажмите **Сгенерировать секретный ключ** для получения `Secret Key`
+
+<Warning>
+**Храните секретный ключ в безопасности!**
+
+- Никогда не передавайте его на клиентскую сторону (браузер)
+- Используйте переменные окружения
+- Не коммитьте в репозиторий
+</Warning>
+
+## Тестовые vs Production ключи
+
+| Тип | Формат | Описание |
+|-----|--------|----------|
+| Тестовые | `pk_test_*`, `sk_test_*` | Для разработки, без реальных платежей |
+| Production | `pk_live_*`, `sk_live_*` | Для боевого окружения |
+
+## Частые ошибки
+
+### INVALID_SIGNATURE
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_SIGNATURE",
+    "message": "Неверная HMAC подпись"
+  }
+}
+```
+
+**Возможные причины:**
+- Неправильный порядок элементов в строке подписи
+- Query параметры включены в PATH
+- Неправильный формат body (пробелы, порядок ключей)
+- Неверный секретный ключ
+
+### TIMESTAMP_EXPIRED
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TIMESTAMP_EXPIRED",
+    "message": "Timestamp устарел (более 5 минут)"
+  }
+}
+```
+
+**Решение:** Убедитесь, что время на сервере синхронизировано (NTP).
+
+### MISSING_HEADERS
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "MISSING_HEADERS",
+    "message": "Отсутствует обязательный заголовок"
+  }
+}
+```
+
+**Решение:** Проверьте наличие всех трёх заголовков: `x-api-key`, `x-timestamp`, `x-signature`.

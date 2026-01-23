@@ -1,0 +1,214 @@
+---
+title: 'Аналитика'
+description: 'Получение аналитики по платежам'
+api: 'GET https://loveandpay.io/api/v2/analytics'
+---
+
+## Заголовки
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ParamField header="x-timestamp" type="string" required>
+  Unix timestamp в миллисекундах
+</ParamField>
+
+<ParamField header="x-signature" type="string" required>
+  HMAC-SHA256 подпись
+</ParamField>
+
+## Query параметры
+
+<ParamField query="startDate" type="string">
+  Начало периода в формате `YYYY-MM-DD`
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Конец периода в формате `YYYY-MM-DD`
+</ParamField>
+
+<ParamField query="groupBy" type="string" default="day">
+  Группировка данных: `day`, `week`, `month`
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "analytics": {
+    "totalRevenue": 150000,
+    "totalTransactions": 50,
+    "averageAmount": 3000,
+    "conversionRate": 0.75,
+    "invoiceCount": 67,
+    "paidCount": 50,
+    "expiredCount": 10,
+    "cancelledCount": 7,
+    "timeline": [
+      {
+        "date": "2024-01-21",
+        "revenue": 45000,
+        "transactions": 15,
+        "invoices": 20
+      },
+      {
+        "date": "2024-01-22",
+        "revenue": 60000,
+        "transactions": 20,
+        "invoices": 25
+      },
+      {
+        "date": "2024-01-23",
+        "revenue": 45000,
+        "transactions": 15,
+        "invoices": 22
+      }
+    ],
+    "topCustomers": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "fullName": "Иван Иванов",
+        "totalAmount": 25000,
+        "paymentCount": 8
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "fullName": "Мария Петрова",
+        "totalAmount": 20000,
+        "paymentCount": 6
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "fullName": "Алексей Сидоров",
+        "totalAmount": 15000,
+        "paymentCount": 5
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v2/analytics?startDate=2024-01-01&endDate=2024-01-31&groupBy=day" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: 1706012345678" \
+  -H "x-signature: a1b2c3d4e5f6..."
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+
+const API_KEY = 'pk_live_xxx';
+const SECRET_KEY = 'sk_live_xxx';
+
+const timestamp = Date.now().toString();
+const method = 'GET';
+const path = '/api/v2/analytics';
+
+const bodyHash = crypto.createHash('sha256').update('').digest('hex');
+const message = `${method}${path}${timestamp}${bodyHash}`;
+const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
+
+const params = new URLSearchParams({
+  startDate: '2024-01-01',
+  endDate: '2024-01-31',
+  groupBy: 'day'
+});
+
+const response = await fetch('https://loveandpay.io' + path + '?' + params, {
+  method,
+  headers: {
+    'x-api-key': API_KEY,
+    'x-timestamp': timestamp,
+    'x-signature': signature
+  }
+});
+
+const { analytics } = await response.json();
+
+console.log(`Общая выручка: ${analytics.totalRevenue}₽`);
+console.log(`Всего транзакций: ${analytics.totalTransactions}`);
+console.log(`Средний чек: ${analytics.averageAmount}₽`);
+console.log(`Конверсия: ${(analytics.conversionRate * 100).toFixed(1)}%`);
+```
+
+```python Python
+import hashlib
+import hmac
+import time
+import requests
+
+API_KEY = 'pk_live_xxx'
+SECRET_KEY = 'sk_live_xxx'
+
+timestamp = str(int(time.time() * 1000))
+method = 'GET'
+path = '/api/v2/analytics'
+
+body_hash = hashlib.sha256(''.encode()).hexdigest()
+message = f"{method}{path}{timestamp}{body_hash}"
+signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+response = requests.get(
+    'https://loveandpay.io' + path,
+    params={
+        'startDate': '2024-01-01',
+        'endDate': '2024-01-31',
+        'groupBy': 'day'
+    },
+    headers={
+        'x-api-key': API_KEY,
+        'x-timestamp': timestamp,
+        'x-signature': signature
+    }
+)
+
+data = response.json()
+analytics = data['analytics']
+
+print(f"Общая выручка: {analytics['totalRevenue']}₽")
+print(f"Всего транзакций: {analytics['totalTransactions']}")
+print(f"Средний чек: {analytics['averageAmount']}₽")
+print(f"Конверсия: {analytics['conversionRate'] * 100:.1f}%")
+```
+</RequestExample>
+
+---
+
+## Описание полей
+
+| Поле | Описание |
+|------|----------|
+| `totalRevenue` | Общая выручка за период (₽) |
+| `totalTransactions` | Количество успешных платежей |
+| `averageAmount` | Средний чек (₽) |
+| `conversionRate` | Конверсия (оплаченные / созданные) |
+| `invoiceCount` | Всего создано счетов |
+| `paidCount` | Оплачено счетов |
+| `expiredCount` | Истекло счетов |
+| `cancelledCount` | Отменено счетов |
+
+## Timeline
+
+Массив `timeline` содержит данные по каждому периоду:
+
+| Поле | Описание |
+|------|----------|
+| `date` | Дата (или начало недели/месяца) |
+| `revenue` | Выручка за период |
+| `transactions` | Количество платежей |
+| `invoices` | Количество созданных счетов |
+
+## Top Customers
+
+Массив `topCustomers` содержит топ-клиентов по сумме платежей:
+
+| Поле | Описание |
+|------|----------|
+| `id` | UUID клиента |
+| `fullName` | Имя клиента |
+| `totalAmount` | Общая сумма платежей |
+| `paymentCount` | Количество платежей |

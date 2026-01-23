@@ -1,0 +1,298 @@
+---
+title: 'События и верификация'
+description: 'Типы событий и проверка подлинности вебхуков'
+---
+
+## Доступные события
+
+| Событие | Описание |
+|---------|----------|
+| `invoice.created` | Создан новый счёт |
+| `invoice.paid` | Счёт оплачен |
+| `invoice.expired` | Истёк срок действия счёта |
+| `invoice.cancelled` | Счёт отменён |
+| `kyc.approved` | KYC верификация успешно пройдена |
+| `kyc.declined` | KYC верификация отклонена |
+| `receipt.approved` | Чек проверен и подтверждён |
+| `receipt.rejected` | Чек отклонён |
+
+---
+
+## Формат вебхука
+
+### Заголовки
+
+| Заголовок | Описание |
+|-----------|----------|
+| `Content-Type` | `application/json` |
+| `X-Webhook-Event` | Тип события (например, `invoice.paid`) |
+| `X-Webhook-Signature` | HMAC-SHA256 подпись payload |
+
+### Payload
+
+```json
+{
+  "event": "invoice.paid",
+  "timestamp": "2024-01-23T12:30:00.000Z",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceNumber": "INV-1234567890-abc123",
+    "amount": 1500,
+    "currency": "RUB",
+    "status": "PAID",
+    "paidAt": "2024-01-23T12:30:00.000Z",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов"
+  }
+}
+```
+
+---
+
+## Проверка подписи
+
+<Warning>
+**Всегда проверяйте подпись!** Это защищает от подделки вебхуков злоумышленниками.
+</Warning>
+
+### Алгоритм
+
+```
+signature = HMAC-SHA256(webhookSecretKey, JSON.stringify(payload))
+```
+
+### Примеры
+
+<CodeGroup>
+
+```javascript Express.js
+const crypto = require('crypto');
+const express = require('express');
+
+const app = express();
+
+// ВАЖНО: используйте raw body для проверки подписи
+app.use('/webhook', express.raw({ type: 'application/json' }));
+
+const WEBHOOK_SECRET = 'whsec_xxxxxxxxxxxxx';
+
+app.post('/webhook', (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const event = req.headers['x-webhook-event'];
+
+  // Вычисляем ожидаемую подпись
+  const expectedSignature = crypto
+    .createHmac('sha256', WEBHOOK_SECRET)
+    .update(req.body)  // raw body
+    .digest('hex');
+
+  // Проверяем подпись
+  if (signature !== expectedSignature) {
+    console.error('Invalid webhook signature');
+    return res.status(401).send('Invalid signature');
+  }
+
+  // Подпись верна, обрабатываем событие
+  const payload = JSON.parse(req.body);
+
+  switch (event) {
+    case 'invoice.paid':
+      console.log(`Счёт ${payload.data.invoiceNumber} оплачен!`);
+      // Ваша логика...
+      break;
+
+    case 'invoice.expired':
+      console.log(`Счёт ${payload.data.invoiceNumber} истёк`);
+      break;
+
+    case 'kyc.approved':
+      console.log(`KYC пройден: ${payload.data.verification.fullName}`);
+      break;
+  }
+
+  res.status(200).send('OK');
+});
+```
+
+```python Flask
+from flask import Flask, request
+import hmac
+import hashlib
+import json
+
+app = Flask(__name__)
+
+WEBHOOK_SECRET = 'whsec_xxxxxxxxxxxxx'
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    signature = request.headers.get('X-Webhook-Signature')
+    event = request.headers.get('X-Webhook-Event')
+
+    # Вычисляем ожидаемую подпись
+    expected_signature = hmac.new(
+        WEBHOOK_SECRET.encode(),
+        request.data,  # raw body
+        hashlib.sha256
+    ).hexdigest()
+
+    # Проверяем подпись
+    if signature != expected_signature:
+        print('Invalid webhook signature')
+        return 'Invalid signature', 401
+
+    # Подпись верна, обрабатываем событие
+    payload = json.loads(request.data)
+
+    if event == 'invoice.paid':
+        print(f"Счёт {payload['data']['invoiceNumber']} оплачен!")
+        # Ваша логика...
+
+    elif event == 'invoice.expired':
+        print(f"Счёт {payload['data']['invoiceNumber']} истёк")
+
+    elif event == 'kyc.approved':
+        print(f"KYC пройден: {payload['data']['verification']['fullName']}")
+
+    return 'OK', 200
+```
+
+```php PHP
+<?php
+
+$webhookSecret = 'whsec_xxxxxxxxxxxxx';
+
+$payload = file_get_contents('php://input');
+$signature = $_SERVER['HTTP_X_WEBHOOK_SIGNATURE'] ?? '';
+$event = $_SERVER['HTTP_X_WEBHOOK_EVENT'] ?? '';
+
+// Вычисляем ожидаемую подпись
+$expectedSignature = hash_hmac('sha256', $payload, $webhookSecret);
+
+// Проверяем подпись
+if ($signature !== $expectedSignature) {
+    http_response_code(401);
+    echo 'Invalid signature';
+    exit;
+}
+
+// Подпись верна, обрабатываем событие
+$data = json_decode($payload, true);
+
+switch ($event) {
+    case 'invoice.paid':
+        echo "Счёт {$data['data']['invoiceNumber']} оплачен!";
+        // Ваша логика...
+        break;
+
+    case 'invoice.expired':
+        echo "Счёт {$data['data']['invoiceNumber']} истёк";
+        break;
+
+    case 'kyc.approved':
+        echo "KYC пройден: {$data['data']['verification']['fullName']}";
+        break;
+}
+
+http_response_code(200);
+echo 'OK';
+?>
+```
+
+</CodeGroup>
+
+---
+
+## Примеры payload
+
+### invoice.paid
+
+```json
+{
+  "event": "invoice.paid",
+  "timestamp": "2024-01-23T12:30:00.000Z",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceNumber": "INV-1234567890-abc123",
+    "amount": 1500,
+    "currency": "RUB",
+    "description": "Оплата заказа #12345",
+    "status": "PAID",
+    "paidAt": "2024-01-23T12:30:00.000Z",
+    "customerEmail": "client@example.com",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567"
+  }
+}
+```
+
+### kyc.approved
+
+```json
+{
+  "event": "kyc.approved",
+  "timestamp": "2024-01-23T12:15:00.000Z",
+  "data": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceId": "550e8400-e29b-41d4-a716-446655440001",
+    "customerId": "your-internal-id",
+    "verification": {
+      "firstName": "Иван",
+      "lastName": "Иванов",
+      "fullName": "Иван Иванов",
+      "dateOfBirth": "1990-01-15",
+      "documentType": "passport",
+      "faceMatchScore": 0.98,
+      "livenessScore": 0.95
+    }
+  }
+}
+```
+
+### receipt.approved
+
+```json
+{
+  "event": "receipt.approved",
+  "timestamp": "2024-01-23T12:30:00.000Z",
+  "data": {
+    "receiptId": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceId": "550e8400-e29b-41d4-a716-446655440001",
+    "verifiedAmount": 1500,
+    "confidence": 0.95
+  }
+}
+```
+
+---
+
+## Лучшие практики
+
+<CardGroup cols={2}>
+  <Card title="Проверяйте подпись" icon="shield-check">
+    Всегда верифицируйте X-Webhook-Signature
+  </Card>
+  <Card title="Отвечайте быстро" icon="bolt">
+    Возвращайте 200 в течение 30 секунд
+  </Card>
+  <Card title="Идемпотентность" icon="repeat">
+    Обрабатывайте повторные вебхуки корректно
+  </Card>
+  <Card title="Логирование" icon="file-lines">
+    Логируйте все входящие вебхуки для отладки
+  </Card>
+</CardGroup>
+
+## Retry политика
+
+При ошибке доставки (non-2xx ответ) система повторяет отправку:
+
+| Попытка | Задержка |
+|---------|----------|
+| 1 | Сразу |
+| 2 | 1 минута |
+| 3 | 5 минут |
+| 4 | 30 минут |
+| 5 | 2 часа |
+
+После 5 неудачных попыток вебхук помечается как недоставленный.

@@ -1,0 +1,124 @@
+---
+title: 'Скачать шаблон'
+description: 'Получение CSV шаблона для пакетного создания счетов'
+api: 'GET https://loveandpay.io/api/v2/batch/invoices'
+---
+
+## Заголовки
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ParamField header="x-timestamp" type="string" required>
+  Unix timestamp в миллисекундах
+</ParamField>
+
+<ParamField header="x-signature" type="string" required>
+  HMAC-SHA256 подпись
+</ParamField>
+
+<ResponseExample>
+```csv 200
+email,name,phone,amount,description,expiresInHours
+client@example.com,Иван Иванов,+79991234567,1500,Оплата услуги,24
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v2/batch/invoices" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: 1706012345678" \
+  -H "x-signature: a1b2c3d4e5f6..." \
+  -o invoice_template.csv
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+const fs = require('fs');
+
+const API_KEY = 'pk_live_xxx';
+const SECRET_KEY = 'sk_live_xxx';
+
+const timestamp = Date.now().toString();
+const method = 'GET';
+const path = '/api/v2/batch/invoices';
+
+const bodyHash = crypto.createHash('sha256').update('').digest('hex');
+const message = `${method}${path}${timestamp}${bodyHash}`;
+const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
+
+const response = await fetch('https://loveandpay.io' + path, {
+  method,
+  headers: {
+    'x-api-key': API_KEY,
+    'x-timestamp': timestamp,
+    'x-signature': signature
+  }
+});
+
+const csv = await response.text();
+fs.writeFileSync('invoice_template.csv', csv);
+console.log('Шаблон сохранён в invoice_template.csv');
+```
+
+```python Python
+import hashlib
+import hmac
+import time
+import requests
+
+API_KEY = 'pk_live_xxx'
+SECRET_KEY = 'sk_live_xxx'
+
+timestamp = str(int(time.time() * 1000))
+method = 'GET'
+path = '/api/v2/batch/invoices'
+
+body_hash = hashlib.sha256(''.encode()).hexdigest()
+message = f"{method}{path}{timestamp}{body_hash}"
+signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+response = requests.get(
+    'https://loveandpay.io' + path,
+    headers={
+        'x-api-key': API_KEY,
+        'x-timestamp': timestamp,
+        'x-signature': signature
+    }
+)
+
+with open('invoice_template.csv', 'w', encoding='utf-8') as f:
+    f.write(response.text)
+
+print('Шаблон сохранён в invoice_template.csv')
+```
+</RequestExample>
+
+---
+
+## Формат CSV
+
+| Колонка | Обязательная | Описание |
+|---------|--------------|----------|
+| `email` | Нет | Email клиента |
+| `name` | Нет | Имя клиента |
+| `phone` | Нет | Телефон в формате +7XXXXXXXXXX |
+| `amount` | **Да** | Сумма в рублях |
+| `description` | Нет | Описание платежа |
+| `expiresInHours` | Нет | Срок действия в часах (по умолчанию 24) |
+
+## Пример заполненного файла
+
+```csv
+email,name,phone,amount,description,expiresInHours
+client1@example.com,Иван Иванов,+79991234567,1500,Заказ #001,24
+client2@example.com,Мария Петрова,+79991234568,2500,Заказ #002,48
+client3@example.com,Алексей Сидоров,+79991234569,3500,Заказ #003,24
+,Анна Козлова,,1000,Заказ #004,12
+```
+
+<Note>
+Пустые значения допустимы для необязательных полей. Обязательным является только `amount`.
+</Note>

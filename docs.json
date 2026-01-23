@@ -40,7 +40,79 @@
         ]
       },
       {
-        "tab": "API справочник",
+        "tab": "API v2",
+        "groups": [
+          {
+            "group": "Начало работы",
+            "pages": [
+              "api-reference/v2/introduction",
+              "api-reference/v2/authentication",
+              "api-reference/v2/rate-limiting",
+              "api-reference/v2/errors"
+            ]
+          },
+          {
+            "group": "Счета (Invoices)",
+            "pages": [
+              "api-reference/v2/invoices/create",
+              "api-reference/v2/invoices/list",
+              "api-reference/v2/invoices/get",
+              "api-reference/v2/invoices/qrcode"
+            ]
+          },
+          {
+            "group": "Клиенты (Customers)",
+            "pages": [
+              "api-reference/v2/customers/list",
+              "api-reference/v2/customers/check",
+              "api-reference/v2/customers/get",
+              "api-reference/v2/customers/block",
+              "api-reference/v2/customers/unblock"
+            ]
+          },
+          {
+            "group": "KYC Верификация",
+            "pages": [
+              "api-reference/v2/kyc/create-session",
+              "api-reference/v2/kyc/list-sessions",
+              "api-reference/v2/kyc/get-session",
+              "api-reference/v2/kyc/refresh-session"
+            ]
+          },
+          {
+            "group": "Чеки (Receipts)",
+            "pages": [
+              "api-reference/v2/receipts/list",
+              "api-reference/v2/receipts/upload",
+              "api-reference/v2/receipts/get"
+            ]
+          },
+          {
+            "group": "Аналитика",
+            "pages": [
+              "api-reference/v2/analytics"
+            ]
+          },
+          {
+            "group": "Вебхуки",
+            "pages": [
+              "api-reference/v2/webhooks/list",
+              "api-reference/v2/webhooks/create",
+              "api-reference/v2/webhooks/delete",
+              "api-reference/v2/webhooks/events"
+            ]
+          },
+          {
+            "group": "Пакетная обработка",
+            "pages": [
+              "api-reference/v2/batch/template",
+              "api-reference/v2/batch/create"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API v1 (устаревший)",
         "groups": [
           {
             "group": "Начало работы",
@@ -148,7 +220,7 @@
     "poweredByMintlify": false
   },
   "api": {
-    "baseUrl": "https://loveandpay.io/api/v1",
+    "baseUrl": "https://loveandpay.io/api/v2",
     "auth": {
       "method": "header",
       "name": "x-api-key"

@@ -1,0 +1,158 @@
+---
+title: 'Коды ошибок'
+description: 'Описание кодов ошибок API v2'
+---
+
+## Формат ответа с ошибкой
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Описание ошибки",
+    "details": {}
+  }
+}
+```
+
+## Коды ошибок
+
+### Аутентификация (401)
+
+| Код | Описание | Решение |
+|----|----------|---------|
+| `MISSING_HEADERS` | Отсутствует обязательный заголовок | Добавьте `x-api-key`, `x-timestamp`, `x-signature` |
+| `INVALID_API_KEY` | Неверный API ключ | Проверьте правильность ключа |
+| `INVALID_SIGNATURE` | Неверная HMAC подпись | Проверьте алгоритм генерации подписи |
+| `TIMESTAMP_EXPIRED` | Timestamp устарел (более 5 минут) | Синхронизируйте время сервера |
+| `SECRET_NOT_CONFIGURED` | Секретный ключ не настроен | Сгенерируйте ключ в личном кабинете |
+
+### Доступ (403)
+
+| Код | Описание | Решение |
+|----|----------|---------|
+| `PARTNER_INACTIVE` | Аккаунт партнёра неактивен | Обратитесь в поддержку |
+| `API_BLOCKED` | API доступ заблокирован | Обратитесь в поддержку |
+
+### Лимиты (429)
+
+| Код | Описание | Решение |
+|----|----------|---------|
+| `RATE_LIMIT_EXCEEDED` | Превышен лимит запросов | Подождите и повторите с backoff |
+| `CYCLE_BLOCKED` | Блокировка за циклические запросы | Подождите 15 минут |
+
+### Валидация (400)
+
+| Код | Описание | Решение |
+|----|----------|---------|
+| `VALIDATION_ERROR` | Ошибка валидации данных | Проверьте формат данных |
+
+<Accordion title="Пример ответа с деталями валидации">
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Ошибка валидации данных",
+    "details": {
+      "fields": {
+        "amount": "Сумма должна быть больше 0",
+        "customerEmail": "Неверный формат email"
+      }
+    }
+  }
+}
+```
+</Accordion>
+
+### Ресурсы (404)
+
+| Код | Описание | Решение |
+|----|----------|---------|
+| `NOT_FOUND` | Ресурс не найден | Проверьте ID ресурса |
+
+### Сервер (500)
+
+| Код | Описание | Решение |
+|----|----------|---------|
+| `INTERNAL_ERROR` | Внутренняя ошибка сервера | Повторите запрос позже |
+
+---
+
+## Обработка ошибок
+
+### JavaScript
+
+```javascript
+async function apiRequest(path, options) {
+  const response = await fetch('https://loveandpay.io' + path, options);
+  const data = await response.json();
+
+  if (!data.success) {
+    switch (data.error.code) {
+      case 'RATE_LIMIT_EXCEEDED':
+        // Retry с backoff
+        break;
+
+      case 'INVALID_SIGNATURE':
+        console.error('Проверьте алгоритм подписи');
+        break;
+
+      case 'TIMESTAMP_EXPIRED':
+        console.error('Синхронизируйте время сервера');
+        break;
+
+      case 'VALIDATION_ERROR':
+        console.error('Ошибки валидации:', data.error.details.fields);
+        break;
+
+      default:
+        console.error(`Ошибка ${data.error.code}: ${data.error.message}`);
+    }
+
+    throw new Error(data.error.message);
+  }
+
+  return data;
+}
+```
+
+### Python
+
+```python
+import requests
+
+def api_request(path, **kwargs):
+    response = requests.request(**kwargs, url=f'https://loveandpay.io{path}')
+    data = response.json()
+
+    if not data.get('success'):
+        error = data.get('error', {})
+        code = error.get('code')
+        message = error.get('message')
+
+        if code == 'RATE_LIMIT_EXCEEDED':
+            # Retry с backoff
+            pass
+        elif code == 'VALIDATION_ERROR':
+            fields = error.get('details', {}).get('fields', {})
+            print(f'Ошибки валидации: {fields}')
+
+        raise Exception(f'{code}: {message}')
+
+    return data
+```
+
+## HTTP статусы
+
+| Статус | Описание |
+|--------|----------|
+| `200` | Успешный запрос |
+| `201` | Ресурс создан |
+| `400` | Ошибка валидации |
+| `401` | Ошибка аутентификации |
+| `403` | Доступ запрещён |
+| `404` | Ресурс не найден |
+| `429` | Превышен лимит запросов |
+| `500` | Внутренняя ошибка сервера |
