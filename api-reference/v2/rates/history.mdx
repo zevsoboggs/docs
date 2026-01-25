@@ -1,0 +1,245 @@
+---
+title: 'История курсов'
+description: 'Получение истории всех зафиксированных курсов'
+api: 'GET https://loveandpay.io/api/v2/rates/history'
+---
+
+Возвращает историю всех зафиксированных курсов с пагинацией.
+
+## Заголовки
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ParamField header="x-timestamp" type="string" required>
+  Unix timestamp в миллисекундах
+</ParamField>
+
+<ParamField header="x-signature" type="string" required>
+  HMAC-SHA256 подпись
+</ParamField>
+
+## Query параметры
+
+<ParamField query="base" type="string" default="USDT">
+  Базовая валюта
+</ParamField>
+
+<ParamField query="quote" type="string" default="RUB">
+  Котируемая валюта
+</ParamField>
+
+<ParamField query="limit" type="number" default="30">
+  Количество записей (максимум 100)
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Смещение для пагинации
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "baseCurrency": "USDT",
+      "quoteCurrency": "RUB",
+      "rate": 92.50,
+      "validFrom": "2026-01-25T00:00:00.000Z",
+      "validTo": null,
+      "isActive": true,
+      "notes": "Фиксация на январь 2026",
+      "fixedAt": "2026-01-25T10:30:00.000Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "baseCurrency": "USDT",
+      "quoteCurrency": "RUB",
+      "rate": 91.00,
+      "validFrom": "2026-01-20T00:00:00.000Z",
+      "validTo": "2026-01-25T00:00:00.000Z",
+      "isActive": false,
+      "notes": null,
+      "fixedAt": "2026-01-20T09:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "total": 15,
+    "limit": 10,
+    "offset": 0,
+    "pages": 2
+  },
+  "requestId": "req_xyz789"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+TIMESTAMP=$(date +%s%3N)
+BODY_HASH=$(echo -n "" | sha256sum | cut -d' ' -f1)
+MESSAGE="GET/api/v2/rates/history${TIMESTAMP}${BODY_HASH}"
+SIGNATURE=$(echo -n "$MESSAGE" | openssl dgst -sha256 -hmac "sk_live_xxx" | cut -d' ' -f2)
+
+curl -X GET "https://loveandpay.io/api/v2/rates/history?base=USDT&quote=RUB&limit=10" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: ${TIMESTAMP}" \
+  -H "x-signature: ${SIGNATURE}"
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+
+const API_KEY = 'pk_live_xxx';
+const SECRET_KEY = 'sk_live_xxx';
+
+async function getRateHistory(base = 'USDT', quote = 'RUB', limit = 10) {
+  const timestamp = Date.now().toString();
+  const method = 'GET';
+  const path = '/api/v2/rates/history';
+
+  const bodyHash = crypto.createHash('sha256').update('').digest('hex');
+  const message = `${method}${path}${timestamp}${bodyHash}`;
+  const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
+
+  const params = new URLSearchParams({ base, quote, limit });
+  const response = await fetch(`https://loveandpay.io${path}?${params}`, {
+    method,
+    headers: {
+      'x-api-key': API_KEY,
+      'x-timestamp': timestamp,
+      'x-signature': signature
+    }
+  });
+
+  const data = await response.json();
+
+  if (data.success) {
+    console.log(`Найдено ${data.pagination.total} записей`);
+
+    data.data.forEach(rate => {
+      const status = rate.isActive ? '(активен)' : '';
+      console.log(`${rate.fixedAt}: ${rate.rate} ${quote} ${status}`);
+    });
+
+    return data;
+  }
+}
+
+getRateHistory('USDT', 'RUB', 10);
+```
+
+```python Python
+import hashlib
+import hmac
+import time
+import requests
+
+API_KEY = 'pk_live_xxx'
+SECRET_KEY = 'sk_live_xxx'
+
+def get_rate_history(base='USDT', quote='RUB', limit=10):
+    timestamp = str(int(time.time() * 1000))
+    method = 'GET'
+    path = '/api/v2/rates/history'
+
+    body_hash = hashlib.sha256(''.encode()).hexdigest()
+    message = f"{method}{path}{timestamp}{body_hash}"
+    signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+    response = requests.get(
+        f'https://loveandpay.io{path}',
+        params={'base': base, 'quote': quote, 'limit': limit},
+        headers={
+            'x-api-key': API_KEY,
+            'x-timestamp': timestamp,
+            'x-signature': signature
+        }
+    )
+
+    data = response.json()
+
+    if data.get('success'):
+        print(f"Найдено {data['pagination']['total']} записей")
+
+        for rate in data['data']:
+            status = '(активен)' if rate['isActive'] else ''
+            print(f"{rate['fixedAt']}: {rate['rate']} {quote} {status}")
+
+        return data
+
+get_rate_history('USDT', 'RUB', 10)
+```
+
+```php PHP
+<?php
+
+$apiKey = 'pk_live_xxx';
+$secretKey = 'sk_live_xxx';
+
+function getRateHistory($base = 'USDT', $quote = 'RUB', $limit = 10) {
+    global $apiKey, $secretKey;
+
+    $timestamp = (string)(round(microtime(true) * 1000));
+    $method = 'GET';
+    $path = '/api/v2/rates/history';
+
+    $bodyHash = hash('sha256', '');
+    $message = $method . $path . $timestamp . $bodyHash;
+    $signature = hash_hmac('sha256', $message, $secretKey);
+
+    $url = 'https://loveandpay.io' . $path . '?' . http_build_query([
+        'base' => $base,
+        'quote' => $quote,
+        'limit' => $limit
+    ]);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'x-api-key: ' . $apiKey,
+        'x-timestamp: ' . $timestamp,
+        'x-signature: ' . $signature
+    ]);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+
+    if ($data['success']) {
+        echo "Найдено {$data['pagination']['total']} записей\n";
+
+        foreach ($data['data'] as $rate) {
+            $status = $rate['isActive'] ? '(активен)' : '';
+            echo "{$rate['fixedAt']}: {$rate['rate']} {$quote} {$status}\n";
+        }
+
+        return $data;
+    }
+
+    return null;
+}
+
+getRateHistory('USDT', 'RUB', 10);
+```
+</RequestExample>
+
+---
+
+## Описание полей
+
+| Поле | Описание |
+|------|----------|
+| `id` | UUID записи курса |
+| `baseCurrency` | Базовая валюта |
+| `quoteCurrency` | Котируемая валюта |
+| `rate` | Значение курса |
+| `validFrom` | Начало действия курса |
+| `validTo` | Окончание действия (null = бессрочно) |
+| `isActive` | Текущий активный курс |
+| `notes` | Заметки к фиксации |
+| `fixedAt` | Дата/время фиксации |

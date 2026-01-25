@@ -108,6 +108,13 @@
               "api-reference/v2/batch/template",
               "api-reference/v2/batch/create"
             ]
+          },
+          {
+            "group": "Курсы (Rates)",
+            "pages": [
+              "api-reference/v2/rates/current",
+              "api-reference/v2/rates/history"
+            ]
           }
         ]
       },
@@ -151,6 +158,13 @@
             "pages": [
               "api-reference/analytics",
               "api-reference/batch"
+            ]
+          },
+          {
+            "group": "Курсы (Rates)",
+            "pages": [
+              "api-reference/rates",
+              "api-reference/rates-history"
             ]
           },
           {

@@ -1,0 +1,270 @@
+---
+title: 'История курсов'
+description: 'Получение истории всех зафиксированных курсов'
+api: 'GET https://loveandpay.io/api/v1/rates/history'
+---
+
+Возвращает историю всех зафиксированных курсов с пагинацией.
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+## Query параметры
+
+<ParamField query="base" type="string" default="USDT">
+  Базовая валюта
+</ParamField>
+
+<ParamField query="quote" type="string" default="RUB">
+  Котируемая валюта
+</ParamField>
+
+<ParamField query="limit" type="number" default="30">
+  Количество записей (максимум 100)
+</ParamField>
+
+<ParamField query="offset" type="number" default="0">
+  Смещение для пагинации
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "baseCurrency": "USDT",
+      "quoteCurrency": "RUB",
+      "rate": 92.50,
+      "validFrom": "2026-01-25T00:00:00.000Z",
+      "validTo": null,
+      "isActive": true,
+      "notes": "Фиксация на январь 2026",
+      "fixedAt": "2026-01-25T10:30:00.000Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "baseCurrency": "USDT",
+      "quoteCurrency": "RUB",
+      "rate": 91.00,
+      "validFrom": "2026-01-20T00:00:00.000Z",
+      "validTo": "2026-01-25T00:00:00.000Z",
+      "isActive": false,
+      "notes": null,
+      "fixedAt": "2026-01-20T09:00:00.000Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "baseCurrency": "USDT",
+      "quoteCurrency": "RUB",
+      "rate": 90.25,
+      "validFrom": "2026-01-15T00:00:00.000Z",
+      "validTo": "2026-01-20T00:00:00.000Z",
+      "isActive": false,
+      "notes": "Корректировка курса",
+      "fixedAt": "2026-01-15T08:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "total": 15,
+    "limit": 10,
+    "offset": 0,
+    "pages": 2
+  },
+  "requestId": "req_xyz789"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v1/rates/history?base=USDT&quote=RUB&limit=10" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+const API_KEY = 'lc_ваш_ключ';
+const BASE_URL = 'https://loveandpay.io';
+
+async function getRateHistory(base = 'USDT', quote = 'RUB', limit = 10) {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/v1/rates/history`, {
+      params: { base, quote, limit },
+      headers: { 'X-Api-Key': API_KEY }
+    });
+
+    if (response.data.success) {
+      console.log(`Найдено ${response.data.pagination.total} записей`);
+
+      response.data.data.forEach(rate => {
+        const status = rate.isActive ? '(активен)' : '';
+        console.log(`${rate.fixedAt}: ${rate.rate} ${quote} ${status}`);
+      });
+
+      return response.data;
+    }
+  } catch (error) {
+    console.error('Ошибка:', error.response?.data?.error || error.message);
+  }
+}
+
+// Использование
+getRateHistory('USDT', 'RUB', 10);
+```
+
+```python Python
+import requests
+
+API_KEY = 'lc_ваш_ключ'
+BASE_URL = 'https://loveandpay.io'
+
+def get_rate_history(base='USDT', quote='RUB', limit=10):
+    response = requests.get(
+        f'{BASE_URL}/api/v1/rates/history',
+        params={'base': base, 'quote': quote, 'limit': limit},
+        headers={'X-Api-Key': API_KEY}
+    )
+
+    data = response.json()
+
+    if data.get('success'):
+        print(f"Найдено {data['pagination']['total']} записей")
+
+        for rate in data['data']:
+            status = '(активен)' if rate['isActive'] else ''
+            print(f"{rate['fixedAt']}: {rate['rate']} {quote} {status}")
+
+        return data
+    else:
+        print(f'Ошибка: {data.get("error")}')
+
+# Использование
+get_rate_history('USDT', 'RUB', 10)
+```
+
+```php PHP
+<?php
+
+$apiKey = 'lc_ваш_ключ';
+$baseUrl = 'https://loveandpay.io';
+
+function getRateHistory($base = 'USDT', $quote = 'RUB', $limit = 10) {
+    global $apiKey, $baseUrl;
+
+    $url = $baseUrl . '/api/v1/rates/history?' . http_build_query([
+        'base' => $base,
+        'quote' => $quote,
+        'limit' => $limit
+    ]);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'X-Api-Key: ' . $apiKey
+    ]);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+
+    if ($data['success']) {
+        echo "Найдено {$data['pagination']['total']} записей\n";
+
+        foreach ($data['data'] as $rate) {
+            $status = $rate['isActive'] ? '(активен)' : '';
+            echo "{$rate['fixedAt']}: {$rate['rate']} {$quote} {$status}\n";
+        }
+
+        return $data;
+    }
+
+    return null;
+}
+
+// Использование
+getRateHistory('USDT', 'RUB', 10);
+```
+</RequestExample>
+
+---
+
+## Описание полей
+
+| Поле | Описание |
+|------|----------|
+| `id` | UUID записи курса |
+| `baseCurrency` | Базовая валюта |
+| `quoteCurrency` | Котируемая валюта |
+| `rate` | Значение курса |
+| `validFrom` | Начало действия курса |
+| `validTo` | Окончание действия (null = бессрочно) |
+| `isActive` | Текущий активный курс |
+| `notes` | Заметки к фиксации |
+| `fixedAt` | Дата/время фиксации |
+
+---
+
+## API v2 (с HMAC-подписью)
+
+Для повышенной безопасности используйте API v2 с HMAC-подписью.
+
+### Дополнительные заголовки
+
+| Заголовок | Описание |
+|-----------|----------|
+| `X-Api-Key` | Ваш API ключ |
+| `X-Timestamp` | Unix timestamp в миллисекундах |
+| `X-Signature` | HMAC-SHA256 подпись |
+
+### Пример с HMAC
+
+```javascript
+const crypto = require('crypto');
+
+function generateSignature(secretKey, method, path, timestamp, body = '') {
+  const bodyHash = body
+    ? crypto.createHash('sha256').update(body).digest('hex')
+    : '';
+
+  const message = `${method}${path}${timestamp}${bodyHash}`;
+
+  return crypto
+    .createHmac('sha256', secretKey)
+    .update(message)
+    .digest('hex');
+}
+
+// Использование
+const timestamp = Date.now().toString();
+const signature = generateSignature(
+  'ваш_hmac_secret',
+  'GET',
+  '/api/v2/rates',
+  timestamp
+);
+
+const response = await fetch('https://loveandpay.io/api/v2/rates?base=USDT&quote=RUB', {
+  headers: {
+    'X-Api-Key': 'lc_ваш_ключ',
+    'X-Timestamp': timestamp,
+    'X-Signature': signature
+  }
+});
+```
+
+```bash cURL с HMAC
+TIMESTAMP=$(date +%s000)
+SIGNATURE=$(echo -n "GET/api/v2/rates${TIMESTAMP}" | openssl dgst -sha256 -hmac "ваш_hmac_secret" | cut -d' ' -f2)
+
+curl -X GET "https://loveandpay.io/api/v2/rates?base=USDT&quote=RUB" \
+  -H "X-Api-Key: lc_ваш_ключ" \
+  -H "X-Timestamp: ${TIMESTAMP}" \
+  -H "X-Signature: ${SIGNATURE}"
+```

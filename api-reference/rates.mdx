@@ -1,0 +1,176 @@
+---
+title: 'Текущий курс'
+description: 'Получение актуального зафиксированного курса'
+api: 'GET https://loveandpay.io/api/v1/rates'
+---
+
+Возвращает актуальный зафиксированный курс для вашего аккаунта.
+
+## Заголовки
+
+<ParamField header="X-Api-Key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+## Query параметры
+
+<ParamField query="base" type="string" default="USDT">
+  Базовая валюта
+</ParamField>
+
+<ParamField query="quote" type="string" default="RUB">
+  Котируемая валюта
+</ParamField>
+
+<ParamField query="date" type="string">
+  Дата для получения курса (формат: `YYYY-MM-DD`). По умолчанию — сегодня
+</ParamField>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "rate": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "baseCurrency": "USDT",
+    "quoteCurrency": "RUB",
+    "rate": 92.50,
+    "validFrom": "2026-01-25T00:00:00.000Z",
+    "validTo": null,
+    "fixedAt": "2026-01-25T10:30:00.000Z"
+  },
+  "formatted": {
+    "pair": "USDT/RUB",
+    "value": "1 USDT = 92,50 RUB"
+  },
+  "requestId": "req_abc123"
+}
+```
+
+```json 404
+{
+  "success": false,
+  "error": "No fixed rate found for USDT/RUB",
+  "requestId": "req_abc123"
+}
+```
+
+```json 401
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v1/rates?base=USDT&quote=RUB" \
+  -H "X-Api-Key: lc_ваш_ключ"
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+const API_KEY = 'lc_ваш_ключ';
+const BASE_URL = 'https://loveandpay.io';
+
+async function getCurrentRate(base = 'USDT', quote = 'RUB') {
+  try {
+    const response = await axios.get(`${BASE_URL}/api/v1/rates`, {
+      params: { base, quote },
+      headers: { 'X-Api-Key': API_KEY }
+    });
+
+    if (response.data.success) {
+      console.log(`Курс: 1 ${base} = ${response.data.rate.rate} ${quote}`);
+      return response.data.rate;
+    }
+  } catch (error) {
+    console.error('Ошибка:', error.response?.data?.error || error.message);
+  }
+}
+
+// Использование
+getCurrentRate('USDT', 'RUB');
+```
+
+```python Python
+import requests
+
+API_KEY = 'lc_ваш_ключ'
+BASE_URL = 'https://loveandpay.io'
+
+def get_current_rate(base='USDT', quote='RUB'):
+    response = requests.get(
+        f'{BASE_URL}/api/v1/rates',
+        params={'base': base, 'quote': quote},
+        headers={'X-Api-Key': API_KEY}
+    )
+
+    data = response.json()
+
+    if data.get('success'):
+        rate = data['rate']['rate']
+        print(f'Курс: 1 {base} = {rate} {quote}')
+        return data['rate']
+    else:
+        print(f'Ошибка: {data.get("error")}')
+
+# Использование
+get_current_rate('USDT', 'RUB')
+```
+
+```php PHP
+<?php
+
+$apiKey = 'lc_ваш_ключ';
+$baseUrl = 'https://loveandpay.io';
+
+function getCurrentRate($base = 'USDT', $quote = 'RUB') {
+    global $apiKey, $baseUrl;
+
+    $url = $baseUrl . '/api/v1/rates?' . http_build_query([
+        'base' => $base,
+        'quote' => $quote
+    ]);
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'X-Api-Key: ' . $apiKey
+    ]);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+
+    if ($data['success']) {
+        echo "Курс: 1 {$base} = {$data['rate']['rate']} {$quote}\n";
+        return $data['rate'];
+    }
+
+    return null;
+}
+
+// Использование
+getCurrentRate('USDT', 'RUB');
+```
+</RequestExample>
+
+---
+
+## Описание полей ответа
+
+| Поле | Описание |
+|------|----------|
+| `rate.id` | UUID записи курса |
+| `rate.baseCurrency` | Базовая валюта (например, USDT) |
+| `rate.quoteCurrency` | Котируемая валюта (например, RUB) |
+| `rate.rate` | Значение курса |
+| `rate.validFrom` | Начало действия курса |
+| `rate.validTo` | Окончание действия (null = бессрочно) |
+| `rate.fixedAt` | Дата/время фиксации курса |
+| `formatted.pair` | Форматированная пара (USDT/RUB) |
+| `formatted.value` | Человекочитаемое значение |
