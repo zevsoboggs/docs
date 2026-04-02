@@ -1,0 +1,235 @@
+---
+title: 'Создать счёт от суб-аккаунта'
+description: 'Создание счёта от имени конкретного пользователя (суб-аккаунта) через единый API ключ партнёра'
+api: 'POST https://loveandpay.io/api/v2/invoices'
+---
+
+Позволяет создавать счета от имени конкретного пользователя, используя единый API ключ родительского партнёра. Для этого передайте опциональное поле `createdByUserId` в теле запроса.
+
+<Note>
+Если поле `createdByUserId` не передано — счёт создаётся от имени системного пользователя партнёра (стандартное поведение).
+</Note>
+
+## Заголовки
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ParamField header="x-timestamp" type="string" required>
+  Unix timestamp в миллисекундах
+</ParamField>
+
+<ParamField header="x-signature" type="string" required>
+  HMAC-SHA256 подпись
+</ParamField>
+
+## Тело запроса
+
+<ParamField body="amount" type="number" required>
+  Сумма в рублях (не в копейках!). Пример: `1500.50`
+</ParamField>
+
+<ParamField body="description" type="string">
+  Описание платежа. Пример: `Оплата заказа #12345`
+</ParamField>
+
+<ParamField body="customerEmail" type="string">
+  Email клиента
+</ParamField>
+
+<ParamField body="customerName" type="string">
+  Имя клиента
+</ParamField>
+
+<ParamField body="customerPhone" type="string">
+  Телефон клиента в формате `+7XXXXXXXXXX`
+</ParamField>
+
+<ParamField body="expiresInHours" type="number" default="1">
+  Срок действия счёта в часах
+</ParamField>
+
+<ParamField body="kycRequired" type="boolean" default="false">
+  Требовать KYC верификацию перед оплатой
+</ParamField>
+
+<ParamField body="createdByUserId" type="string">
+  ID пользователя (суб-аккаунта), от имени которого создаётся счёт. Если не передан — счёт создаётся от имени системного пользователя партнёра.
+</ParamField>
+
+## Валидация `createdByUserId`
+
+| Ситуация | Ответ |
+|----------|-------|
+| Пользователь не найден | `400` — User not found |
+| Пользователь из другого партнёра | `403` — User does not belong to this partner |
+| Пользователь неактивен | `400` — User is inactive |
+| Поле не передано | Работает как раньше (стандартное поведение) |
+
+<Tip>
+ID пользователей можно получить в панели партнёра: **Сотрудники** (`/dashboard/employees`) — у каждого пользователя есть уникальный ID.
+</Tip>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "invoice": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceNumber": "INV-1234567890-abc123",
+    "amount": 1500,
+    "currency": "RUB",
+    "description": "Оплата услуги",
+    "status": "PENDING",
+    "expiresAt": "2024-01-24T12:00:00.000Z",
+    "createdAt": "2024-01-23T12:00:00.000Z",
+    "createdById": "clxxx...user-id",
+    "qrCode": "data:image/png;base64,...",
+    "qrPayload": "https://qr.nspk.ru/...",
+    "externalOrderId": "550e8400-e29b-41d4-a716-446655440001",
+    "kycRequired": false,
+    "kycVerified": false,
+    "receiptRequired": false,
+    "paymentLink": "https://loveandpay.io/pay/INV-1234567890-abc123",
+    "customer": null
+  }
+}
+```
+
+```json 400
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "User not found"
+  }
+}
+```
+
+```json 403
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "User does not belong to this partner"
+  }
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://loveandpay.io/api/v2/invoices" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: 1712000000000" \
+  -H "x-signature: a1b2c3d4e5f6..." \
+  -d '{
+    "amount": 1500,
+    "description": "Оплата услуги",
+    "customerName": "Иван Иванов",
+    "customerPhone": "+79991234567",
+    "createdByUserId": "clxxx...user-id-здесь"
+  }'
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+
+const API_KEY = 'pk_live_xxx';
+const SECRET_KEY = 'sk_live_xxx';
+
+const timestamp = Date.now().toString();
+const method = 'POST';
+const path = '/api/v2/invoices';
+const body = JSON.stringify({
+  amount: 1500,
+  description: 'Оплата услуги',
+  customerName: 'Иван Иванов',
+  customerPhone: '+79991234567',
+  createdByUserId: 'clxxx...user-id-здесь'
+});
+
+const bodyHash = crypto.createHash('sha256').update(body).digest('hex');
+const message = `${method}${path}${timestamp}${bodyHash}`;
+const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
+
+const response = await fetch('https://loveandpay.io' + path, {
+  method,
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': API_KEY,
+    'x-timestamp': timestamp,
+    'x-signature': signature
+  },
+  body
+});
+
+console.log(await response.json());
+```
+
+```python Python
+import hashlib
+import hmac
+import time
+import requests
+import json
+
+API_KEY = 'pk_live_xxx'
+SECRET_KEY = 'sk_live_xxx'
+
+timestamp = str(int(time.time() * 1000))
+method = 'POST'
+path = '/api/v2/invoices'
+body = json.dumps({
+    'amount': 1500,
+    'description': 'Оплата услуги',
+    'customerName': 'Иван Иванов',
+    'customerPhone': '+79991234567',
+    'createdByUserId': 'clxxx...user-id-здесь'
+})
+
+body_hash = hashlib.sha256(body.encode()).hexdigest()
+message = f"{method}{path}{timestamp}{body_hash}"
+signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+response = requests.post(
+    'https://loveandpay.io' + path,
+    headers={
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'x-timestamp': timestamp,
+        'x-signature': signature
+    },
+    data=body
+)
+
+print(response.json())
+```
+</RequestExample>
+
+---
+
+## Batch — создание от имени суб-аккаунта
+
+При пакетном создании счетов (`POST /api/v2/batch/invoices`) вы также можете указать `createdByUserId` — все счета в батче будут созданы от указанного пользователя.
+
+```bash cURL
+TIMESTAMP=$(date +%s%3N)
+BODY_HASH=$(echo -n "" | sha256sum | cut -d' ' -f1)
+MESSAGE="POST/api/v2/batch/invoices${TIMESTAMP}${BODY_HASH}"
+SIGNATURE=$(echo -n "$MESSAGE" | openssl dgst -sha256 -hmac "sk_live_xxx" | cut -d' ' -f2)
+
+curl -X POST "https://loveandpay.io/api/v2/batch/invoices" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: ${TIMESTAMP}" \
+  -H "x-signature: ${SIGNATURE}" \
+  -F "file=@invoices.csv" \
+  -F "format=csv" \
+  -F "createdByUserId=clxxx...user-id-здесь"
+```
+
+<Note>
+Для batch-запросов `createdByUserId` передаётся как отдельное поле формы (`multipart/form-data`), а не в JSON-теле.
+</Note>

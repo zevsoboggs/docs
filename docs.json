@@ -55,6 +55,7 @@
             "group": "Счета (Invoices)",
             "pages": [
               "api-reference/v2/invoices/create",
+              "api-reference/v2/invoices/create-sub-account",
               "api-reference/v2/invoices/list",
               "api-reference/v2/invoices/get",
               "api-reference/v2/invoices/qrcode"
