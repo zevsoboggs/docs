@@ -40,6 +40,10 @@ api: 'POST https://loveandpay.io/api/v1/invoices'
   URL для редиректа после успешной оплаты
 </ParamField>
 
+<ParamField body="successUrl" type="string">
+  URL для мгновенной переадресации клиента после успешной оплаты. Если не указан — клиент остаётся на странице оплаты Love&Pay со статусом «Оплачено». Подробнее — [Переадресация после оплаты](/api-reference/v2/invoices/success-url).
+</ParamField>
+
 ### Пример запроса
 
 <CodeGroup>

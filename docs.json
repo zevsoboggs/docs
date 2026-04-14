@@ -57,6 +57,7 @@
               "api-reference/v2/invoices/create",
               "api-reference/v2/invoices/create-card",
               "api-reference/v2/invoices/create-sub-account",
+              "api-reference/v2/invoices/success-url",
               "api-reference/v2/invoices/list",
               "api-reference/v2/invoices/get",
               "api-reference/v2/invoices/qrcode"

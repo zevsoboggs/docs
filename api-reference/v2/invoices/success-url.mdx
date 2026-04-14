@@ -1,0 +1,124 @@
+---
+title: 'Переадресация после оплаты'
+description: 'Параметр successUrl — автоматический redirect клиента после успешной оплаты счёта'
+---
+
+При создании счёта можно передать параметр `successUrl` — URL, на который клиент будет **мгновенно перенаправлен** после успешной оплаты.
+
+Если `successUrl` не указан — клиент остаётся на странице оплаты Love&Pay (`https://loveandpay.io/pay/INV-xxx`) со статусом «Оплачено», где видит чек и QR-код.
+
+<Note>
+Параметр `successUrl` поддерживается в API v1 и API v2 одинаково. На этой странице приведены примеры для v2, но в v1 работает аналогично.
+</Note>
+
+## Параметр
+
+<ParamField body="successUrl" type="string">
+  URL для перенаправления клиента после успешной оплаты.
+</ParamField>
+
+**Требования:**
+
+- Полный URL включая протокол (`https://...`)
+- URL должен быть публично доступен для клиента
+- Можно передавать query-параметры (`?order=123&status=paid`)
+
+## Пример запроса
+
+```bash cURL
+curl -X POST "https://loveandpay.io/api/v2/invoices" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: 1706012345678" \
+  -H "x-signature: a1b2c3d4e5f6..." \
+  -d '{
+    "amount": 50000,
+    "description": "Заказ #12345",
+    "customerName": "Иван Иванов",
+    "customerEmail": "ivan@example.com",
+    "customerPhone": "+79001234567",
+    "successUrl": "https://yoursite.com/payment/success?order=12345",
+    "expiresInHours": 1
+  }'
+```
+
+## Как это работает
+
+### Оплата через СБП (QR)
+
+<Steps>
+  <Step title="Открытие страницы">
+    Клиент открывает страницу оплаты `https://loveandpay.io/pay/INV-xxx`
+  </Step>
+  <Step title="Оплата">
+    Сканирует QR-код и оплачивает в банковском приложении
+  </Step>
+  <Step title="Определение оплаты">
+    Страница автоматически определяет оплату (polling каждые 3 секунды)
+  </Step>
+  <Step title="Переадресация">
+    Мгновенный redirect на `successUrl`
+  </Step>
+</Steps>
+
+### Оплата картой (Overpay / TBank)
+
+<Steps>
+  <Step title="Открытие страницы">
+    Клиент открывает страницу оплаты Love&Pay
+  </Step>
+  <Step title="Редирект на шлюз">
+    Перенаправляется на форму оплаты провайдера
+  </Step>
+  <Step title="Ввод данных">
+    Вводит данные карты, проходит 3DS
+  </Step>
+  <Step title="Возврат">
+    Провайдер возвращает клиента на `https://loveandpay.io/pay/INV-xxx`
+  </Step>
+  <Step title="Определение оплаты">
+    Страница определяет, что счёт оплачен
+  </Step>
+  <Step title="Переадресация">
+    Мгновенный redirect на `successUrl`
+  </Step>
+</Steps>
+
+## Динамический URL
+
+Можно передавать любые query-параметры — например, ID заказа или пользователя для последующей обработки:
+
+```json
+{
+  "amount": 100000,
+  "description": "Подписка Premium",
+  "successUrl": "https://myapp.com/api/payment-callback?invoice_id=INV-xxx&user_id=456"
+}
+```
+
+## Без `successUrl`
+
+```json
+{
+  "amount": 100000,
+  "description": "Разовый платёж"
+}
+```
+
+Клиент остаётся на `loveandpay.io/pay/INV-xxx` — видит статус «Оплачено», чек и QR-код.
+
+---
+
+## Важно
+
+<Warning>
+`successUrl` — это **клиентский redirect** (в браузере), а не серверный callback.
+</Warning>
+
+- Для **серверных уведомлений** используйте [Вебхуки](/api-reference/v2/webhooks/events) (событие `invoice.paid`)
+- Redirect происходит **мгновенно** — клиент не успевает увидеть страницу «Оплачено»
+- Если URL недоступен — браузер покажет ошибку (это на стороне партнёра)
+
+<Tip>
+Рекомендуется использовать `successUrl` **вместе с вебхуками**: redirect — для UX клиента, вебхук — для надёжной серверной обработки платежа.
+</Tip>

@@ -44,6 +44,10 @@ api: 'POST https://loveandpay.io/api/v2/invoices'
   Срок действия счёта в часах
 </ParamField>
 
+<ParamField body="successUrl" type="string">
+  URL для мгновенной переадресации клиента после успешной оплаты. Если не указан — клиент остаётся на странице оплаты Love&Pay со статусом «Оплачено». Подробнее — [Переадресация после оплаты](/api-reference/v2/invoices/success-url).
+</ParamField>
+
 <ParamField body="paymentMethod" type="string" default="sbp">
   Метод оплаты: `"sbp"` (СБП, по умолчанию) или `"card"` (банковская карта через Overpay). Подробнее — [Создать счёт (оплата по карте)](/api-reference/v2/invoices/create-card).
 </ParamField>
