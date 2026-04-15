@@ -1,10 +1,10 @@
 ---
 title: 'Создать счёт (оплата по карте)'
-description: 'Создание счёта с оплатой банковской картой через Overpay'
+description: 'Создание счёта с оплатой банковской картой'
 api: 'POST https://loveandpay.io/api/v2/invoices'
 ---
 
-Для создания счёта с оплатой по банковской карте передайте поле `paymentMethod: "card"` в теле запроса. Клиент будет перенаправлен на страницу оплаты картой через платёжный шлюз Overpay.
+Для создания счёта с оплатой по банковской карте передайте поле `paymentMethod: "card"` в теле запроса. Клиент будет перенаправлен на защищённую страницу оплаты картой.
 
 <Note>
 Если поле `paymentMethod` не передано — счёт создаётся с оплатой через СБП (стандартное поведение).
@@ -65,10 +65,10 @@ api: 'POST https://loveandpay.io/api/v2/invoices'
 | Поле | Описание |
 |------|----------|
 | `paymentLink` | Платёжная страница Love&Pay — перенаправляет клиента на оплату |
-| `originalPaymentUrl` | Оригинальная ссылка на платёжный шлюз Overpay |
+| `originalPaymentUrl` | Прямая ссылка на платёжную форму |
 
 <Tip>
-Для перенаправления клиента используйте `paymentLink` — это наша обёртка со стилизацией и трекингом. `originalPaymentUrl` доступен на случай, если нужна прямая ссылка на шлюз.
+Для перенаправления клиента используйте `paymentLink` — это наша обёртка со стилизацией и трекингом. `originalPaymentUrl` доступен на случай, если нужна прямая ссылка на платёжную форму.
 </Tip>
 
 <ResponseExample>
@@ -90,7 +90,7 @@ api: 'POST https://loveandpay.io/api/v2/invoices'
     "kycVerified": false,
     "receiptRequired": false,
     "paymentLink": "https://loveandpay.io/pay/INV-1234567890-abc123",
-    "originalPaymentUrl": "https://paylink.overpay.io/api/order/abc123",
+    "originalPaymentUrl": "https://secure-pay.example.com/order/abc123",
     "customer": null
   }
 }
@@ -172,7 +172,7 @@ const response = await fetch('https://loveandpay.io' + path, {
 
 const data = await response.json();
 console.log('Платёжная ссылка:', data.invoice.paymentLink);
-console.log('Ссылка Overpay:', data.invoice.originalPaymentUrl);
+console.log('Прямая ссылка:', data.invoice.originalPaymentUrl);
 ```
 
 ```python Python
@@ -213,7 +213,7 @@ response = requests.post(
 
 data = response.json()
 print('Платёжная ссылка:', data['invoice']['paymentLink'])
-print('Ссылка Overpay:', data['invoice']['originalPaymentUrl'])
+print('Прямая ссылка:', data['invoice']['originalPaymentUrl'])
 ```
 </RequestExample>
 
@@ -226,5 +226,5 @@ print('Ссылка Overpay:', data['invoice']['originalPaymentUrl'])
 | **Поле `paymentMethod`** | Не требуется | `"card"` |
 | **QR-код** | Да (`qrCode`, `qrPayload`) | Нет |
 | **Платёжная ссылка** | `paymentLink` | `paymentLink` |
-| **Ссылка на шлюз** | — | `originalPaymentUrl` (Overpay) |
+| **Прямая ссылка на форму** | — | `originalPaymentUrl` |
 | **Способ оплаты** | Перевод через банковское приложение | Ввод данных карты |

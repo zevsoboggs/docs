@@ -61,20 +61,20 @@ curl -X POST "https://loveandpay.io/api/v2/invoices" \
   </Step>
 </Steps>
 
-### Оплата картой (Overpay / TBank)
+### Оплата картой
 
 <Steps>
   <Step title="Открытие страницы">
     Клиент открывает страницу оплаты Love&Pay
   </Step>
-  <Step title="Редирект на шлюз">
-    Перенаправляется на форму оплаты провайдера
+  <Step title="Редирект на форму оплаты">
+    Перенаправляется на защищённую форму ввода данных карты
   </Step>
   <Step title="Ввод данных">
     Вводит данные карты, проходит 3DS
   </Step>
   <Step title="Возврат">
-    Провайдер возвращает клиента на `https://loveandpay.io/pay/INV-xxx`
+    Клиент возвращается на `https://loveandpay.io/pay/INV-xxx`
   </Step>
   <Step title="Определение оплаты">
     Страница определяет, что счёт оплачен
