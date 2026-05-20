@@ -105,15 +105,6 @@
             ]
           },
           {
-            "group": "Вебхуки",
-            "pages": [
-              "api-reference/v2/webhooks/list",
-              "api-reference/v2/webhooks/create",
-              "api-reference/v2/webhooks/delete",
-              "api-reference/v2/webhooks/events"
-            ]
-          },
-          {
             "group": "Пакетная обработка",
             "pages": [
               "api-reference/v2/batch/template",
@@ -146,14 +137,6 @@
               "api-reference/invoices/list",
               "api-reference/invoices/get",
               "api-reference/invoices/qrcode"
-            ]
-          },
-          {
-            "group": "Вебхуки (Webhooks)",
-            "pages": [
-              "api-reference/webhooks/create",
-              "api-reference/webhooks/events",
-              "api-reference/webhooks/verification"
             ]
           },
           {

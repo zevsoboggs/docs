@@ -115,7 +115,7 @@ curl -X POST "https://loveandpay.io/api/v2/invoices" \
 `successUrl` — это **клиентский redirect** (в браузере), а не серверный callback.
 </Warning>
 
-- Для **серверных уведомлений** используйте [Вебхуки](/api-reference/v2/webhooks/events) (событие `invoice.paid`)
+- Для **серверных уведомлений** используйте [Вебхуки](/guides/webhooks) (событие `invoice.paid`) — создаются в [дашборде](https://loveandpay.io/dashboard/webhooks)
 - Redirect происходит **мгновенно** — клиент не успевает увидеть страницу «Оплачено»
 - Если URL недоступен — браузер покажет ошибку (это на стороне партнёра)
 
