@@ -183,8 +183,7 @@
               "api-reference/crypto/transactions",
               "api-reference/crypto/withdrawals-balance",
               "api-reference/crypto/withdrawals-create",
-              "api-reference/crypto/withdrawals",
-              "api-reference/crypto/webhooks"
+              "api-reference/crypto/withdrawals"
             ]
           }
         ]
