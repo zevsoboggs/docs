@@ -1,80 +1,131 @@
 ---
 title: "Быстрый старт"
-description: "Начните создавать отличную документацию за несколько минут"
+description: "Подключите Love&Pay API за 5 минут — создайте первый счёт и получите оплату через СБП"
 ---
 
-## Начните за три шага
+## За что отвечает API
 
-Запустите сайт документации локально и сделайте первую настройку.
+API позволяет создавать счета на оплату, получать актуальные курсы валют, управлять клиентами, KYC-сессиями и читать аналитику. Создание/изменение **вебхуков и тарифов** — только через [веб-кабинет](https://loveandpay.io/dashboard).
 
-### Шаг 1: Настройте локальное окружение
+## Подготовка
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Клонируйте документацию локально">
-    Во время регистрации вы создали GitHub репозиторий с контентом документации, если у вас его ещё не было. Ссылку на репозиторий можно найти в [панели управления](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Получите API-ключи">
+    Войдите в [Профиль → API](https://loveandpay.io/dashboard/profile).
 
-    Чтобы клонировать репозиторий локально для внесения и предпросмотра изменений, следуйте руководству [Клонирование репозитория](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) в документации GitHub.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Запустите сервер предпросмотра">
-    1. Установите Mintlify CLI: `npm i -g mint`
-    2. Перейдите в папку с документацией и выполните: `mint dev`
-    3. Откройте `http://localhost:3000` чтобы увидеть документацию!
+    - **API Key** (постоянный UUID) — основной идентификатор партнёра.
+    - **Secret Key** — нажмите **«Сгенерировать секретный ключ»**. Показывается **один раз** при создании — сохраните в безопасное место.
 
-    <Tip>Предпросмотр обновляется автоматически при редактировании файлов.</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Warning>
+    Если потеряли Secret — сгенерируйте новый. Старый перестанет работать **сразу**, без grace-периода.
+    </Warning>
+  </Step>
 
-### Шаг 2: Разверните изменения
+  <Step title="Выберите версию API">
+    | Версия | Аутентификация | Рекомендация |
+    |---|---|---|
+    | **API v2** | API Key + HMAC-SHA256 | ✅ Используйте для нового интегрирования |
+    | API v1 | Только API Key | Только для legacy-проектов |
 
-<AccordionGroup>
-  <Accordion icon="github" title="Установите наше GitHub приложение">
-    Установите приложение Mintlify GitHub из [панели управления](https://dashboard.mintlify.com/settings/organization/github-app).
+    [Документация v2 →](/api-reference/v2/introduction)
+  </Step>
 
-    Наше GitHub приложение автоматически разворачивает изменения на сайте документации, так что вам не нужно управлять деплоем самостоятельно.
-</Accordion>
-<Accordion icon="palette" title="Обновите название и цвета сайта">
-    Для первого изменения давайте обновим название и цвета сайта документации.
+  <Step title="Создайте первый счёт">
+    Минимальный запрос — сумма в рублях:
 
-    1. Откройте `docs.json` в редакторе.
-    2. Измените поле `"name"` на название вашего проекта.
-    3. Обновите `"colors"` под ваш бренд.
-    4. Сохраните и сразу увидите изменения на `http://localhost:3000`.
+    ```bash cURL
+    TIMESTAMP=$(date +%s%3N)
+    METHOD="POST"
+    PATH="/api/v2/invoices"
+    BODY='{"amount":1500.50,"description":"Тестовый счёт"}'
+    BODY_HASH=$(echo -n "$BODY" | sha256sum | cut -d' ' -f1)
+    MESSAGE="${METHOD}${PATH}${TIMESTAMP}${BODY_HASH}"
+    SIGNATURE=$(echo -n "$MESSAGE" | openssl dgst -sha256 -hmac "$SECRET_KEY" | cut -d' ' -f2)
 
-    <Tip>Попробуйте изменить основной цвет, чтобы сразу увидеть разницу!</Tip>
-  </Accordion>
-</AccordionGroup>
+    curl -X POST "https://loveandpay.io${PATH}" \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: $API_KEY" \
+      -H "x-timestamp: $TIMESTAMP" \
+      -H "x-signature: $SIGNATURE" \
+      -d "$BODY"
+    ```
 
-### Шаг 3: Запуск в продакшн
+    Ответ:
 
-<Accordion icon="rocket" title="Опубликуйте документацию">
-  1. Сделайте коммит и запушьте изменения.
-  2. Ваша документация обновится и будет доступна через несколько мгновений!
-</Accordion>
+    ```json
+    {
+      "success": true,
+      "invoice": {
+        "id": "uuid",
+        "invoiceNumber": "INV-260520-0001",
+        "amount": 150050,
+        "status": "PENDING",
+        "qrCodeBase64": "data:image/png;base64,...",
+        "qrCodePayload": "https://qr.nspk.ru/...",
+        "paymentLink": "https://loveandpay.io/pay/INV-260520-0001",
+        "expiresAt": "2026-05-20T15:00:00.000Z"
+      }
+    }
+    ```
 
-## Следующие шаги
+    <Note>
+    **Суммы — в копейках** (`150050` = 1500.50 ₽).
+    </Note>
+  </Step>
 
-Теперь, когда документация работает, изучите ключевые возможности:
+  <Step title="Покажите клиенту QR или ссылку">
+    Три способа доставки:
+
+    - **QR-код**: `invoice.qrCodeBase64` (готовое PNG, base64 inline) — печатайте, шлите в чатах.
+    - **Ссылка СБП**: `invoice.qrCodePayload` (https://qr.nspk.ru/…) — открывается в банковском приложении на телефоне.
+    - **Платёжная страница**: `invoice.paymentLink` (https://loveandpay.io/pay/…) — удобный landing с QR, инструкцией и таймером.
+  </Step>
+
+  <Step title="Получайте уведомления об оплате">
+    Зайдите в [Вебхуки](https://loveandpay.io/dashboard/webhooks) и подпишитесь на `invoice.paid`. На ваш URL придёт подписанный POST с данными счёта.
+
+    Подробности — в [руководстве по вебхукам](/guides/webhooks).
+  </Step>
+</Steps>
+
+## Жизненный цикл счёта
+
+```mermaid
+flowchart LR
+  A[POST /api/v2/invoices] --> B[PENDING<br/>QR создан]
+  B -- через 5 мин --> B2[QR пересоздан<br/>статус тот же]
+  B2 -- через 5 мин --> B3[QR пересоздан...]
+  B3 -- клиент платит --> C[PAID]
+  B3 -- 1 час истёк --> D[EXPIRED]
+  B3 -- партнёр отменил --> E[CANCELLED]
+  C -- партнёр оформил возврат --> F[REFUNDED]
+```
+
+- **Счёт активен 1 час** с момента создания.
+- **QR от банка живёт 5 минут**, потом мы автоматически генерируем новый — без вашего участия.
+- На статусе PAID партнёр может оформить **возврат** (полный или частичный).
+
+[Полный жизненный цикл →](/guides/invoice-lifecycle)
+
+## Что дальше?
 
 <CardGroup cols={2}>
-
-<Card title="Написание контента" icon="pen-to-square" href="/essentials/markdown">
-  Изучите синтаксис MDX и начните писать документацию.
-</Card>
-
-<Card title="Настройка стиля" icon="palette" href="/essentials/settings">
-  Сделайте документацию идеально соответствующей вашему бренду.
-</Card>
-
-<Card title="Примеры кода" icon="square-code" href="/essentials/code">
-  Добавляйте блоки кода с подсветкой синтаксиса.
-</Card>
-
-<Card title="Документация API" icon="code" href="/api-reference/introduction">
-  Автоматически генерируйте документацию API из OpenAPI спецификаций.
-</Card>
-
+  <Card title="Жизненный цикл счёта" icon="clock" href="/guides/invoice-lifecycle">
+    QR, статусы, expiry, возвраты
+  </Card>
+  <Card title="Аутентификация v2" icon="key" href="/api-reference/v2/authentication">
+    HMAC-SHA256, примеры на 4 языках
+  </Card>
+  <Card title="Webhooks через UI" icon="webhook" href="/guides/webhooks">
+    Создание, тесты, retry-логика
+  </Card>
+  <Card title="Сотрудники и роли" icon="users" href="/guides/employees">
+    PARTNER / EMPLOYEE / AGENT
+  </Card>
+  <Card title="KYC верификация" icon="shield-check" href="/guides/kyc-verification">
+    Veriff / Didit, тарифы
+  </Card>
+  <Card title="FAQ" icon="circle-question" href="/guides/faq">
+    Частые вопросы и подводные камни
+  </Card>
 </CardGroup>
-
-<Note>
-  **Нужна помощь?** Смотрите [полную документацию](https://mintlify.com/docs) или присоединяйтесь к [сообществу](https://mintlify.com/community).
-</Note>

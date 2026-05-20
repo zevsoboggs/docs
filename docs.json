@@ -16,7 +16,16 @@
           {
             "group": "Начало работы",
             "pages": [
-              "index"
+              "index",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Базовые понятия",
+            "pages": [
+              "guides/invoice-lifecycle",
+              "guides/webhooks",
+              "guides/faq"
             ]
           },
           {
@@ -33,8 +42,7 @@
               "guides/infrastructure",
               "guides/server-errors",
               "guides/status",
-              "guides/coming-soon",
-              "guides/faq"
+              "guides/coming-soon"
             ]
           }
         ]

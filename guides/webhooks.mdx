@@ -1,0 +1,235 @@
+---
+title: 'Вебхуки'
+description: 'Уведомления о статусах счетов — создаются только через веб-кабинет'
+---
+
+## Главное
+
+<Warning>
+**Вебхуки настраиваются только через [веб-кабинет](https://loveandpay.io/dashboard/webhooks)**.
+Публичного API для создания/изменения/удаления вебхуков **нет** — это сделано осознанно для предотвращения атак на ваш endpoint через утёкший API-ключ.
+</Warning>
+
+В этом руководстве — как создать вебхук в UI, какие события доступны, как проверять HMAC-подпись и обрабатывать retry-логику.
+
+## Создание вебхука
+
+<Steps>
+  <Step title="Откройте раздел в кабинете">
+    [Панель управления → Вебхуки](https://loveandpay.io/dashboard/webhooks)
+  </Step>
+
+  <Step title="Нажмите «Создать вебхук»">
+    Заполните форму:
+
+    - **URL** — куда отправлять POST. Должен быть **HTTPS** в production.
+    - **События** — отметьте нужные галочки (см. список ниже).
+    - **Описание** (опционально) — для своих заметок.
+  </Step>
+
+  <Step title="Скопируйте секрет">
+    После создания система покажет **Webhook Secret** — уникальный ключ для этого вебхука. Сохраните его — он нужен для проверки HMAC-подписи входящих запросов.
+
+    <Note>Секрет можно посмотреть позже в карточке вебхука — он **не одноразовый**, в отличие от API-секрета.</Note>
+  </Step>
+
+  <Step title="Проверьте доставку">
+    В карточке вебхука есть кнопка **«Тест»** — отправит проверочный POST на ваш URL с фиктивным payload'ом. Если у вас 2xx — вебхук работает.
+  </Step>
+</Steps>
+
+## Доступные события
+
+| Событие | Когда срабатывает |
+|---|---|
+| `invoice.paid` | Клиент оплатил счёт |
+| `invoice.expired` | Истёк час, счёт стал EXPIRED |
+| `invoice.cancelled` | Партнёр отменил счёт |
+| `invoice.refunded` | Выполнен возврат (полный или частичный) |
+| `kyc.passed` | Клиент успешно прошёл KYC |
+| `kyc.rejected` | KYC отклонён (failed-verification) |
+| `kyc.manual_review` | KYC отправлен на ручную проверку |
+
+## Формат payload
+
+POST на ваш URL с JSON-телом и HMAC-заголовком:
+
+```http
+POST https://your-server.com/lovepay-webhook HTTP/1.1
+Content-Type: application/json
+X-LNP-Event: invoice.paid
+X-LNP-Signature: 7d2a8b3c...
+X-LNP-Timestamp: 1716207600000
+X-LNP-Delivery: 4f8e9a1d-xxxx-...
+
+{
+  "event": "invoice.paid",
+  "timestamp": 1716207600000,
+  "invoice": {
+    "id": "uuid",
+    "invoiceNumber": "INV-260520-0042",
+    "amount": 150050,
+    "status": "PAID",
+    "paidAt": "2026-05-20T14:00:00.000Z",
+    "metadata": { "orderId": "12345" },
+    "customerEmail": "user@example.com",
+    "customerPhone": "+79001234567"
+  }
+}
+```
+
+Поле `metadata` всегда возвращается из того, что вы передали при создании счёта.
+
+## Проверка HMAC-подписи (обязательно!)
+
+Перед обработкой **всегда** проверяйте `X-LNP-Signature` — иначе любой может вам слать фейковые "оплачено". Подпись = `HMAC-SHA256(webhook_secret, timestamp + raw_body)`.
+
+<CodeGroup>
+
+```javascript Node.js
+const crypto = require('crypto')
+
+app.post('/lovepay-webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.headers['x-lnp-signature']
+  const timestamp = req.headers['x-lnp-timestamp']
+  const body = req.body.toString('utf8')
+
+  const expected = crypto
+    .createHmac('sha256', process.env.WEBHOOK_SECRET)
+    .update(timestamp + body)
+    .digest('hex')
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    return res.status(401).end('Invalid signature')
+  }
+
+  // Защита от replay: не принимать события старше 5 минут
+  if (Math.abs(Date.now() - parseInt(timestamp)) > 5 * 60 * 1000) {
+    return res.status(401).end('Timestamp expired')
+  }
+
+  const event = JSON.parse(body)
+  console.log('Получили:', event.event, event.invoice.invoiceNumber)
+
+  // ⚠️ Отвечайте 200 OK сразу — обрабатывайте асинхронно
+  res.status(200).end('ok')
+  queue.add('process-lovepay', event)
+})
+```
+
+```python Python (Flask)
+import hmac
+import hashlib
+import os
+import time
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+SECRET = os.environ['WEBHOOK_SECRET']
+
+@app.post('/lovepay-webhook')
+def webhook():
+    signature = request.headers.get('X-LNP-Signature', '')
+    timestamp = request.headers.get('X-LNP-Timestamp', '')
+    raw_body = request.get_data(as_text=True)
+
+    expected = hmac.new(
+        SECRET.encode(),
+        (timestamp + raw_body).encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(signature, expected):
+        abort(401, 'Invalid signature')
+
+    if abs(int(time.time() * 1000) - int(timestamp)) > 5 * 60 * 1000:
+        abort(401, 'Timestamp expired')
+
+    event = request.get_json()
+    # ⚠️ Сразу 200, обработка асинхронно
+    queue.enqueue(process_event, event)
+    return 'ok', 200
+```
+
+```php PHP
+<?php
+$secret = getenv('WEBHOOK_SECRET');
+$signature = $_SERVER['HTTP_X_LNP_SIGNATURE'] ?? '';
+$timestamp = $_SERVER['HTTP_X_LNP_TIMESTAMP'] ?? '';
+$body = file_get_contents('php://input');
+
+$expected = hash_hmac('sha256', $timestamp . $body, $secret);
+
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    exit('Invalid signature');
+}
+
+if (abs(round(microtime(true) * 1000) - intval($timestamp)) > 5 * 60 * 1000) {
+    http_response_code(401);
+    exit('Timestamp expired');
+}
+
+$event = json_decode($body, true);
+http_response_code(200);
+echo 'ok';
+// Дальше — отправляйте на воркер для обработки
+```
+
+</CodeGroup>
+
+## Доставка и retry
+
+Наш бэк отправляет вебхук **сразу** при событии. Таймаут — **10 секунд**. Если получили не 2xx или request упал, делаем повторы по экспоненте:
+
+| Попытка | Через |
+|---|---|
+| 1 | сразу |
+| 2 | +1 минуту |
+| 3 | +5 минут |
+| 4 | +15 минут |
+| 5 | +1 час |
+| 6 | +4 часа |
+
+После 6-й неуспешной попытки вебхук помечается как `failed`, но можно вручную перепослать через **«История доставки»** в карточке вебхука.
+
+<Tip>
+**Идемпотентность**. Один и тот же `X-LNP-Delivery` UUID может прийти повторно при ретраях. Сохраняйте обработанные `delivery-id` в БД и игнорируйте дубли.
+</Tip>
+
+## Best practices
+
+- **Отвечайте 200 OK немедленно**. Обработку (письма клиенту, обновление БД) делайте асинхронно в очереди. Если ответите долго — у вас таймаут, у нас ретрай.
+- **Только HTTPS** в production. HTTP вебхуки технически работают, но Cloudflare/Mintlify-провайдеры могут блокировать.
+- **Логируйте `X-LNP-Delivery`** во всех своих логах — пригодится при разборе спорных случаев с поддержкой.
+- **Проверяйте signature ВСЕГДА**, не верьте даже если IP белый.
+- **Замена секрета**: в кабинете есть «Сгенерировать новый секрет» — старый перестаёт работать сразу, обновите его на своей стороне без даунтайма.
+
+## История и отладка
+
+В кабинете в [Вебхуки → история доставки](https://loveandpay.io/dashboard/webhooks) видно:
+
+- Время отправки и попыток
+- HTTP-статус ответа
+- Тело ответа (первые 1 КБ)
+- Возможность **повторить вручную**
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="Можно ли создавать вебхуки через API?">
+    Нет. Только через веб-кабинет. Это политика безопасности — чтобы скомпрометированный API-ключ не позволил атакующему перенаправить ваши финансовые уведомления.
+  </Accordion>
+  <Accordion title="Куда придёт webhook если URL временно недоступен?">
+    Будем повторять до 6 раз с возрастающим интервалом (см. таблицу выше). Все попытки видны в истории доставки.
+  </Accordion>
+  <Accordion title="Можно ли иметь несколько вебхуков?">
+    Да. Можно создать N вебхуков на разные URL и разные наборы событий — например, один для production, второй для staging.
+  </Accordion>
+  <Accordion title="Что отвечать если события не нужно обрабатывать?">
+    Любой 2xx ответ считается успешным. Если конкретное событие не интересно — просто верните 200 без обработки.
+  </Accordion>
+  <Accordion title="Есть тестовый webhook для разработки?">
+    Используйте кнопку **«Тест»** в карточке вебхука — отправит примерный payload на ваш URL. Или подключите [webhook.site](https://webhook.site) для отладки.
+  </Accordion>
+</AccordionGroup>
