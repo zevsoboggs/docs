@@ -84,11 +84,11 @@ icon: 'circle-question'
   </Accordion>
 
   <Accordion title="Какие события доступны?">
-    `invoice.paid`, `invoice.expired`, `invoice.cancelled`, `invoice.refunded`, `kyc.passed`, `kyc.rejected`, `kyc.manual_review`. Полный список с примерами payload — [Вебхуки](/guides/webhooks).
+    `invoice.created`, `invoice.updated`, `invoice.paid`, `invoice.expired`, `invoice.cancelled`, `transaction.created`, `transaction.completed`, `transaction.failed`, `payment.payer_info`, `payment.third_party_payer`, `kyc.started`, `kyc.approved`, `kyc.rejected`, `kyc.expired`. Полный список с примерами payload — [Вебхуки](/guides/webhooks).
   </Accordion>
 
   <Accordion title="Как проверить что webhook действительно от Love&Pay?">
-    Проверяйте HMAC-подпись из заголовка `X-LNP-Signature`. Алгоритм: `HMAC-SHA256(webhook_secret, timestamp + raw_body)`. **Никогда** не доверяйте webhook без проверки подписи.
+    Проверяйте HMAC-подпись из заголовка `X-Webhook-Signature`. Алгоритм: `HMAC-SHA256(webhook_secret, raw_body)` (подпись от сырого тела, hex). **Никогда** не доверяйте webhook без проверки подписи. Подробнее — [Вебхуки](/guides/webhooks).
   </Accordion>
 </AccordionGroup>
 

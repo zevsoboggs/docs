@@ -121,7 +121,18 @@
         ]
       },
       {
-        "tab": "API v1 (устаревший)",
+        "tab": "API v3 (в разработке)",
+        "groups": [
+          {
+            "group": "API v3",
+            "pages": [
+              "api-reference/v3/introduction"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API v1 (отключён)",
         "groups": [
           {
             "group": "Начало работы",

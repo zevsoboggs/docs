@@ -40,27 +40,55 @@ description: 'Уведомления о статусах счетов — соз
 
 ## Доступные события
 
+**Счета:**
+
 | Событие | Когда срабатывает |
 |---|---|
+| `invoice.created` | Счёт создан |
+| `invoice.updated` | Счёт обновлён |
 | `invoice.paid` | Клиент оплатил счёт |
 | `invoice.expired` | Истёк час, счёт стал EXPIRED |
-| `invoice.cancelled` | Партнёр отменил счёт |
-| `invoice.refunded` | Выполнен возврат (полный или частичный) |
-| `kyc.passed` | Клиент успешно прошёл KYC |
-| `kyc.rejected` | KYC отклонён (failed-verification) |
-| `kyc.manual_review` | KYC отправлен на ручную проверку |
+| `invoice.cancelled` | Счёт отменён |
+
+**Транзакции:**
+
+| Событие | Когда срабатывает |
+|---|---|
+| `transaction.created` | Создана платёжная транзакция |
+| `transaction.completed` | Транзакция завершена (оплата прошла) |
+| `transaction.failed` | Транзакция отклонена |
+
+**Плательщик (анти-фрод):**
+
+| Событие | Когда срабатывает |
+|---|---|
+| `payment.payer_info` | После оплаты получены данные плательщика (ФИО/телефон от провайдера) |
+| `payment.third_party_payer` | Счёт оплачен **третьим лицом** (ФИО плательщика ≠ ожидаемого) |
+
+**KYC:**
+
+| Событие | Когда срабатывает |
+|---|---|
+| `kyc.started` | Клиент начал верификацию |
+| `kyc.approved` | KYC успешно пройден |
+| `kyc.rejected` | KYC отклонён |
+| `kyc.expired` | Срок KYC-сессии истёк |
+
+<Note>
+Возврат средств отдельным событием не приходит — отслеживайте смену статуса счёта.
+</Note>
 
 ## Формат payload
 
-POST на ваш URL с JSON-телом и HMAC-заголовком:
+POST на ваш URL с JSON-телом и заголовками:
 
 ```http
 POST https://your-server.com/lovepay-webhook HTTP/1.1
 Content-Type: application/json
-X-LNP-Event: invoice.paid
-X-LNP-Signature: 7d2a8b3c...
-X-LNP-Timestamp: 1716207600000
-X-LNP-Delivery: 4f8e9a1d-xxxx-...
+X-Webhook-Event: invoice.paid
+X-Webhook-Signature: 7d2a8b3c...
+X-Webhook-Timestamp: 2026-05-20T14:00:00.000Z
+X-Webhook-Id: 4f8e9a1d-xxxx-...
 
 {
   "event": "invoice.paid",
@@ -69,6 +97,7 @@ X-LNP-Delivery: 4f8e9a1d-xxxx-...
     "id": "uuid",
     "invoiceNumber": "INV-260520-0042",
     "amount": 150050,
+    "currency": "RUB",
     "status": "PAID",
     "paidAt": "2026-05-20T14:00:00.000Z",
     "metadata": { "orderId": "12345" },
@@ -78,11 +107,27 @@ X-LNP-Delivery: 4f8e9a1d-xxxx-...
 }
 ```
 
-Поле `metadata` всегда возвращается из того, что вы передали при создании счёта.
+| Заголовок | Описание |
+|---|---|
+| `X-Webhook-Event` | Тип события (`invoice.paid` и т.д.) |
+| `X-Webhook-Signature` | HMAC-SHA256 подпись **тела запроса** (hex) |
+| `X-Webhook-Timestamp` | Время отправки, ISO 8601 |
+| `X-Webhook-Id` | ID вебхука (для логов/диагностики) |
+
+<Note>
+`amount` — в копейках (RUB × 100). Поле `metadata` всегда возвращается из того, что вы передали при создании счёта.
+</Note>
 
 ## Проверка HMAC-подписи (обязательно!)
 
-Перед обработкой **всегда** проверяйте `X-LNP-Signature` — иначе любой может вам слать фейковые "оплачено". Подпись = `HMAC-SHA256(webhook_secret, timestamp + raw_body)`.
+Перед обработкой **всегда** проверяйте `X-Webhook-Signature` — иначе любой может вам слать фейковые "оплачено".
+
+<Warning>
+Подпись считается от **сырого тела запроса** (без timestamp):
+`signature = HMAC-SHA256(webhook_secret, raw_body)` в hex.
+Проверяйте именно **необработанные байты** тела (до парсинга JSON) — повторная
+сериализация изменит строку и подпись не сойдётся.
+</Warning>
 
 <CodeGroup>
 
@@ -90,26 +135,23 @@ X-LNP-Delivery: 4f8e9a1d-xxxx-...
 const crypto = require('crypto')
 
 app.post('/lovepay-webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  const signature = req.headers['x-lnp-signature']
-  const timestamp = req.headers['x-lnp-timestamp']
-  const body = req.body.toString('utf8')
+  const signature = req.headers['x-webhook-signature']
+  const body = req.body.toString('utf8') // сырое тело
 
   const expected = crypto
     .createHmac('sha256', process.env.WEBHOOK_SECRET)
-    .update(timestamp + body)
+    .update(body)
     .digest('hex')
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+  if (
+    signature.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  ) {
     return res.status(401).end('Invalid signature')
   }
 
-  // Защита от replay: не принимать события старше 5 минут
-  if (Math.abs(Date.now() - parseInt(timestamp)) > 5 * 60 * 1000) {
-    return res.status(401).end('Timestamp expired')
-  }
-
   const event = JSON.parse(body)
-  console.log('Получили:', event.event, event.invoice.invoiceNumber)
+  console.log('Получили:', event.event, event.invoice?.invoiceNumber)
 
   // ⚠️ Отвечайте 200 OK сразу — обрабатывайте асинхронно
   res.status(200).end('ok')
@@ -121,7 +163,6 @@ app.post('/lovepay-webhook', express.raw({ type: 'application/json' }), (req, re
 import hmac
 import hashlib
 import os
-import time
 from flask import Flask, request, abort
 
 app = Flask(__name__)
@@ -129,21 +170,17 @@ SECRET = os.environ['WEBHOOK_SECRET']
 
 @app.post('/lovepay-webhook')
 def webhook():
-    signature = request.headers.get('X-LNP-Signature', '')
-    timestamp = request.headers.get('X-LNP-Timestamp', '')
-    raw_body = request.get_data(as_text=True)
+    signature = request.headers.get('X-Webhook-Signature', '')
+    raw_body = request.get_data(as_text=True)  # сырое тело
 
     expected = hmac.new(
         SECRET.encode(),
-        (timestamp + raw_body).encode(),
+        raw_body.encode(),
         hashlib.sha256
     ).hexdigest()
 
     if not hmac.compare_digest(signature, expected):
         abort(401, 'Invalid signature')
-
-    if abs(int(time.time() * 1000) - int(timestamp)) > 5 * 60 * 1000:
-        abort(401, 'Timestamp expired')
 
     event = request.get_json()
     # ⚠️ Сразу 200, обработка асинхронно
@@ -154,20 +191,14 @@ def webhook():
 ```php PHP
 <?php
 $secret = getenv('WEBHOOK_SECRET');
-$signature = $_SERVER['HTTP_X_LNP_SIGNATURE'] ?? '';
-$timestamp = $_SERVER['HTTP_X_LNP_TIMESTAMP'] ?? '';
-$body = file_get_contents('php://input');
+$signature = $_SERVER['HTTP_X_WEBHOOK_SIGNATURE'] ?? '';
+$body = file_get_contents('php://input'); // сырое тело
 
-$expected = hash_hmac('sha256', $timestamp . $body, $secret);
+$expected = hash_hmac('sha256', $body, $secret);
 
 if (!hash_equals($expected, $signature)) {
     http_response_code(401);
     exit('Invalid signature');
-}
-
-if (abs(round(microtime(true) * 1000) - intval($timestamp)) > 5 * 60 * 1000) {
-    http_response_code(401);
-    exit('Timestamp expired');
 }
 
 $event = json_decode($body, true);
@@ -194,14 +225,14 @@ echo 'ok';
 После 6-й неуспешной попытки вебхук помечается как `failed`, но можно вручную перепослать через **«История доставки»** в карточке вебхука.
 
 <Tip>
-**Идемпотентность**. Один и тот же `X-LNP-Delivery` UUID может прийти повторно при ретраях. Сохраняйте обработанные `delivery-id` в БД и игнорируйте дубли.
+**Идемпотентность**. При ретраях одно и то же событие может прийти повторно. Дедуплицируйте по паре `invoice.id` + `event` (или по `invoiceNumber` + `status`) — сохраняйте обработанные и игнорируйте дубли.
 </Tip>
 
 ## Best practices
 
 - **Отвечайте 200 OK немедленно**. Обработку (письма клиенту, обновление БД) делайте асинхронно в очереди. Если ответите долго — у вас таймаут, у нас ретрай.
 - **Только HTTPS** в production. HTTP вебхуки технически работают, но Cloudflare/Mintlify-провайдеры могут блокировать.
-- **Логируйте `X-LNP-Delivery`** во всех своих логах — пригодится при разборе спорных случаев с поддержкой.
+- **Логируйте `X-Webhook-Id` и `invoiceNumber`** во всех своих логах — пригодится при разборе спорных случаев с поддержкой.
 - **Проверяйте signature ВСЕГДА**, не верьте даже если IP белый.
 - **Замена секрета**: в кабинете есть «Сгенерировать новый секрет» — старый перестаёт работать сразу, обновите его на своей стороне без даунтайма.
 

@@ -1,143 +1,152 @@
 ---
-title: 'QR код счёта'
-description: 'Получение QR кода для оплаты счёта'
+title: 'Актуальный QR код'
+description: 'Получение и авто-обновление СБП QR кода счёта'
 api: 'GET https://loveandpay.io/api/v2/invoices/{id}/qrcode'
 ---
 
+## Как устроен QR
+
+<Warning>
+**СБП QR-код живёт ограниченное время:**
+- **СБП (OVERPAY/CRICTI)** — **5 минут**
+- Прочие провайдеры (KANYON/IPT_DBS/ALTYN) — 15 минут
+
+Сам счёт действует **1 час**. Пока счёт в статусе `PENDING`, QR можно
+переполучать сколько угодно — система **автоматически пересоздаёт** его у
+провайдера, когда срок истёк.
+</Warning>
+
+Этот эндпоинт всегда возвращает **актуальный** QR:
+- если текущий QR ещё действует — отдаёт его и `remainingSeconds` до истечения;
+- если истёк (или передан `?refresh=1`) — пересоздаёт новый у провайдера.
+
+`id` может быть как **UUID** счёта, так и его **номером** (`INV-...`).
+
+## Рекомендуемый сценарий отображения
+
+<Steps>
+  <Step title="Создайте счёт">
+    `POST /api/v2/invoices` — в ответе уже есть первый `qrCode` и `qrPayload`.
+  </Step>
+  <Step title="Показывайте QR клиенту">
+    Рисуйте `qrCode` (картинка) или `payload` (ссылка `qr.nspk.ru/...`).
+  </Step>
+  <Step title="Обновляйте до истечения">
+    Каждые **&lt; 5 минут** (например, раз в 60–120 сек) запрашивайте
+    `GET /invoices/{id}/qrcode` и перерисовывайте QR. Ориентируйтесь на
+    `remainingSeconds`.
+  </Step>
+  <Step title="Останавливайтесь по статусу">
+    Когда `status` стал `PAID` / `EXPIRED` / `CANCELLED` — прекратите обновление.
+  </Step>
+</Steps>
+
 ## Заголовки
 
-<ParamField header="x-api-key" type="string" required>
-  Ваш API ключ
-</ParamField>
-
-<ParamField header="x-timestamp" type="string" required>
-  Unix timestamp в миллисекундах
-</ParamField>
-
-<ParamField header="x-signature" type="string" required>
-  HMAC-SHA256 подпись
-</ParamField>
+<ParamField header="x-api-key" type="string" required>Ваш API ключ</ParamField>
+<ParamField header="x-timestamp" type="string" required>Unix timestamp в миллисекундах</ParamField>
+<ParamField header="x-signature" type="string" required>HMAC-SHA256 подпись</ParamField>
 
 ## Path параметры
 
 <ParamField path="id" type="string" required>
-  UUID счёта
+  UUID счёта **или** номер счёта (`INV-...`)
 </ParamField>
 
 ## Query параметры
 
-<ParamField query="format" type="string" default="base64">
-  Формат QR кода: `base64`, `svg`, `png`
+<ParamField query="refresh" type="string">
+  `1` или `true` — принудительно пересоздать QR, даже если текущий ещё действует.
+  (То же делает `POST` на этот URL.)
 </ParamField>
 
-<ParamField query="size" type="number" default="300">
-  Размер в пикселях
-</ParamField>
+## Ответ
+
+<ResponseField name="qrCode" type="string">Картинка QR в формате data URL (`data:image/png;base64,...`)</ResponseField>
+<ResponseField name="payload" type="string">СБП-payload — ссылка `https://qr.nspk.ru/...`</ResponseField>
+<ResponseField name="invoiceNumber" type="string">Номер счёта</ResponseField>
+<ResponseField name="status" type="string">Статус: `PENDING` / `PAID` / `EXPIRED` / `CANCELLED`</ResponseField>
+<ResponseField name="regenerated" type="boolean">`true`, если QR пересоздан в этом запросе</ResponseField>
+<ResponseField name="remainingSeconds" type="number">Сколько секунд текущий QR ещё действителен</ResponseField>
+<ResponseField name="qrValiditySeconds" type="number">Полный срок жизни QR провайдера (300 для СБП)</ResponseField>
+<ResponseField name="qrExpiresAt" type="string">Время истечения текущего QR (ISO 8601)</ResponseField>
+<ResponseField name="qrCodeCreatedAt" type="string">Время создания текущего QR (ISO 8601)</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://loveandpay.io/api/v2/invoices/INV-260520-0042/qrcode" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: 1716207600000" \
+  -H "x-signature: a1b2c3d4e5f6..."
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+const API_KEY = 'pk_live_xxx';
+const SECRET_KEY = 'sk_live_xxx';
+
+async function getFreshQr(invoiceId) {
+  const timestamp = Date.now().toString();
+  const method = 'GET';
+  const path = `/api/v2/invoices/${invoiceId}/qrcode`; // БЕЗ query в подписи!
+  const bodyHash = crypto.createHash('sha256').update('').digest('hex');
+  const message = `${method}${path}${timestamp}${bodyHash}`;
+  const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
+
+  const res = await fetch('https://loveandpay.io' + path, {
+    headers: { 'x-api-key': API_KEY, 'x-timestamp': timestamp, 'x-signature': signature },
+  });
+  return res.json();
+}
+
+// Поллинг: обновляем QR пока счёт PENDING
+async function showInvoiceQr(invoiceId, imgEl) {
+  while (true) {
+    const d = await getFreshQr(invoiceId);
+    if (['PAID', 'EXPIRED', 'CANCELLED'].includes(d.status)) break;
+    imgEl.src = d.qrCode;
+    const wait = Math.max(15, (d.remainingSeconds || 60) - 20) * 1000; // обновить заранее
+    await new Promise(r => setTimeout(r, wait));
+  }
+}
+```
+</RequestExample>
 
 <ResponseExample>
-```json 200
+```json 200 — актуальный QR
 {
-  "success": true,
   "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA...",
-  "payload": "https://qr.nspk.ru/..."
+  "payload": "https://qr.nspk.ru/AD100...",
+  "invoiceNumber": "INV-260520-0042",
+  "status": "PENDING",
+  "regenerated": false,
+  "qrCodeCreatedAt": "2026-05-20T14:00:00.000Z",
+  "qrExpiresAt": "2026-05-20T14:05:00.000Z",
+  "remainingSeconds": 215,
+  "qrValiditySeconds": 300
+}
+```
+
+```json 200 — счёт уже оплачен (QR не пересоздаётся)
+{
+  "qrCode": "data:image/png;base64,...",
+  "payload": "https://qr.nspk.ru/...",
+  "invoiceNumber": "INV-260520-0042",
+  "status": "PAID",
+  "regenerated": false,
+  "note": "Invoice already paid"
 }
 ```
 
 ```json 404
 {
   "success": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Счёт не найден"
-  }
+  "error": { "code": "NOT_FOUND", "message": "Счёт не найден" }
 }
 ```
 </ResponseExample>
 
-<RequestExample>
-```bash cURL
-curl -X GET "https://loveandpay.io/api/v2/invoices/550e8400-e29b-41d4-a716-446655440000/qrcode?format=png&size=400" \
-  -H "x-api-key: pk_live_xxx" \
-  -H "x-timestamp: 1706012345678" \
-  -H "x-signature: a1b2c3d4e5f6..."
-```
-
-```javascript JavaScript
-const crypto = require('crypto');
-
-const API_KEY = 'pk_live_xxx';
-const SECRET_KEY = 'sk_live_xxx';
-
-const invoiceId = '550e8400-e29b-41d4-a716-446655440000';
-const timestamp = Date.now().toString();
-const method = 'GET';
-const path = `/api/v2/invoices/${invoiceId}/qrcode`; // БЕЗ query параметров!
-
-const bodyHash = crypto.createHash('sha256').update('').digest('hex');
-const message = `${method}${path}${timestamp}${bodyHash}`;
-const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
-
-const response = await fetch('https://loveandpay.io' + path + '?format=png&size=400', {
-  method,
-  headers: {
-    'x-api-key': API_KEY,
-    'x-timestamp': timestamp,
-    'x-signature': signature
-  }
-});
-
-const data = await response.json();
-
-// Отобразить QR код
-const img = document.createElement('img');
-img.src = data.qrCode;
-document.body.appendChild(img);
-```
-
-```python Python
-import hashlib
-import hmac
-import time
-import requests
-import base64
-
-API_KEY = 'pk_live_xxx'
-SECRET_KEY = 'sk_live_xxx'
-
-invoice_id = '550e8400-e29b-41d4-a716-446655440000'
-timestamp = str(int(time.time() * 1000))
-method = 'GET'
-path = f'/api/v2/invoices/{invoice_id}/qrcode'
-
-body_hash = hashlib.sha256(''.encode()).hexdigest()
-message = f"{method}{path}{timestamp}{body_hash}"
-signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
-
-response = requests.get(
-    'https://loveandpay.io' + path,
-    params={'format': 'png', 'size': 400},
-    headers={
-        'x-api-key': API_KEY,
-        'x-timestamp': timestamp,
-        'x-signature': signature
-    }
-)
-
-data = response.json()
-
-# Сохранить QR код в файл
-qr_data = data['qrCode'].split(',')[1]
-with open('qrcode.png', 'wb') as f:
-    f.write(base64.b64decode(qr_data))
-```
-</RequestExample>
-
----
-
-## Форматы QR кода
-
-| Формат | Описание |
-|--------|----------|
-| `base64` | Data URL (по умолчанию) — можно сразу использовать в `<img src="...">` |
-| `svg` | Векторный формат — масштабируется без потери качества |
-| `png` | Растровый формат — готов для печати |
+<Note>
+В HMAC-подпись включается **PATH без query** (`/api/v2/invoices/{id}/qrcode`),
+а `?refresh=1` добавляется только к URL запроса.
+</Note>

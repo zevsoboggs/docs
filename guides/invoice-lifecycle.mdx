@@ -76,8 +76,8 @@ flowchart TD
 </Note>
 
 После возврата:
-- Статус счёта → `REFUNDED` (для полного), при частичных остаётся `PAID` + появляется запись в `Refund`
-- Срабатывает webhook `invoice.refunded`
+- Статус счёта → `REFUNDED` (для полного), при частичных остаётся `PAID` + появляется запись о возврате
+- Отдельного webhook о возврате нет — отслеживайте смену статуса счёта (`GET /invoices/{id}`)
 
 ## Метаданные счёта
 
@@ -116,4 +116,4 @@ flowchart TD
 | Период автопересоздания QR | **каждые 5 минут** |
 | Минимальная сумма счёта | **10 ₽** (1000 копеек) |
 | Максимальная сумма | Зависит от лимитов вашего терминала |
-| Статусы webhook'а | `invoice.paid`, `invoice.expired`, `invoice.cancelled`, `invoice.refunded` |
+| События webhook'а | `invoice.paid`, `invoice.expired`, `invoice.cancelled` (+ `invoice.created`, `invoice.updated`, `transaction.*`, `payment.*`, `kyc.*`) |
