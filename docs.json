@@ -33,6 +33,7 @@
             "pages": [
               "guides/creating-invoices",
               "guides/accepting-payments",
+              "guides/api-access-verification",
               "guides/kyc-verification",
               "guides/kyc-client-guide",
               "guides/employees",
