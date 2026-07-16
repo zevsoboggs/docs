@@ -1,0 +1,68 @@
+---
+title: 'Список счетов'
+description: 'GET /api/v3/invoices — cursor-пагинация'
+---
+
+Список счетов партнёра с **cursor-пагинацией** (не деградирует на больших объёмах).
+Требует scope **`invoices:read`**.
+
+**Endpoint:** `GET https://loveandpay.io/api/v3/invoices`
+
+## Query-параметры
+
+<ParamField query="limit" type="number" default="25">
+  Сколько вернуть (1–100).
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  `id` последнего счёта из предыдущей страницы (`nextCursor`).
+</ParamField>
+
+<ParamField query="status" type="string">
+  Фильтр: `PENDING` · `PAID` · `EXPIRED` · `CANCELLED` · `REFUNDED`.
+</ParamField>
+
+<Note>
+Query-параметры **не входят** в подпись (PATH — без query). Подписывайте `/api/v3/invoices`.
+</Note>
+
+<ResponseExample>
+```json 200
+{
+  "ok": true,
+  "data": {
+    "invoices": [
+      {
+        "id": "550e8400-…",
+        "number": "INV-…",
+        "amount": 1500.50,
+        "currency": "RUB",
+        "status": "PAID",
+        "provider": "KANYON",
+        "customer": { "email": "client@example.com", "name": null, "phone": null },
+        "qr": { "image": null, "payload": "https://qr.nspk.ru/…" },
+        "paymentLink": "https://loveandpay.io/pay/INV-…",
+        "createdAt": "2026-07-16T12:00:00.000Z"
+      }
+    ],
+    "nextCursor": "550e8400-…"
+  },
+  "requestId": "5f3c…"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```javascript Node.js
+// первая страница
+let page = await callV3('GET', '/api/v3/invoices?limit=50&status=PAID')
+// следующая
+if (page.data.nextCursor) {
+  page = await callV3('GET', `/api/v3/invoices?limit=50&cursor=${page.data.nextCursor}`)
+}
+```
+</RequestExample>
+
+<Tip>
+`nextCursor: null` означает, что достигнут конец списка.
+</Tip>

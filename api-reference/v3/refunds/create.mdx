@@ -1,0 +1,79 @@
+---
+title: 'Создать возврат'
+description: 'POST /api/v3/invoices/{id}/refund — возврат (идемпотентно)'
+---
+
+Создаёт заявку на возврат по оплаченному счёту (полный или частичный). Заявку подтверждает
+администратор Love&Pay; результат приходит вебхуком `refund.*`. Требует scope
+**`refunds:write`**, поддерживает `idempotency-key`.
+
+**Endpoint:** `POST https://loveandpay.io/api/v3/invoices/{id}/refund`
+
+Заголовки — см. [Аутентификация v3](/api-reference/v3/authentication). `{id}` — UUID или номер счёта.
+
+## Тело запроса
+
+<ParamField body="amount" type="number">
+  Сумма возврата в рублях. **Необязательно** — без неё возвращается весь остаток. Частичный — можно несколько раз до исчерпания остатка.
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Причина возврата (до 1000 символов).
+</ParamField>
+
+<ResponseExample>
+```json 201
+{
+  "ok": true,
+  "data": {
+    "refund": {
+      "id": "9b1f8c00-…",
+      "invoiceId": "550e8400-…",
+      "invoiceNumber": "INV-…",
+      "amount": 500.00,
+      "feePercent": 0,
+      "feeAmount": 0,
+      "reason": "Клиент отменил заказ",
+      "status": "PENDING",
+      "providerRefundId": null,
+      "executionError": null,
+      "adminComment": null,
+      "createdAt": "2026-07-16T12:00:00.000Z",
+      "reviewedAt": null,
+      "executedAt": null
+    }
+  },
+  "requestId": "5f3c…"
+}
+```
+
+```json 400 Больше остатка
+{ "ok": false, "error": { "code": "INVALID_AMOUNT", "message": "amount must be between 0.01 and 660.00 (remaining)", "retryable": false }, "requestId": "5f3c…" }
+```
+
+```json 409 Уже есть активная заявка
+{ "ok": false, "error": { "code": "REFUND_IN_PROGRESS", "message": "Refund already pending", "retryable": true }, "requestId": "5f3c…" }
+```
+</ResponseExample>
+
+<RequestExample>
+```javascript Node.js
+const out = await callV3('POST', '/api/v3/invoices/INV-…/refund',
+  { amount: 500.00, reason: 'Клиент отменил заказ' },
+  { idempotencyKey: crypto.randomUUID() })
+console.log(out.data.refund.status) // PENDING
+```
+</RequestExample>
+
+## Статусы
+
+| Статус | Значение |
+|---|---|
+| `PENDING` | ждёт решения администратора |
+| `APPROVED` | утверждён, исполняется |
+| `COMPLETED` | возврат выполнен ✅ |
+| `FAILED` | не выполнен (см. `executionError`) |
+| `REJECTED` | отклонён |
+
+Отслеживайте результат по вебхукам `refund.completed` / `refund.failed` / `refund.rejected`
+(см. [Вебхуки](/guides/webhooks)) или опросом [GET /api/v3/refunds/{id}](/api-reference/v3/refunds/get).

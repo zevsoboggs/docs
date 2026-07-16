@@ -131,12 +131,29 @@
         ]
       },
       {
-        "tab": "API v3 (в разработке)",
+        "tab": "API v3",
         "groups": [
           {
-            "group": "API v3",
+            "group": "Начало работы",
             "pages": [
-              "api-reference/v3/introduction"
+              "api-reference/v3/introduction",
+              "api-reference/v3/authentication",
+              "api-reference/v3/keys"
+            ]
+          },
+          {
+            "group": "Счета (Invoices)",
+            "pages": [
+              "api-reference/v3/invoices/create",
+              "api-reference/v3/invoices/get",
+              "api-reference/v3/invoices/list"
+            ]
+          },
+          {
+            "group": "Возвраты (Refunds)",
+            "pages": [
+              "api-reference/v3/refunds/create",
+              "api-reference/v3/refunds/get"
             ]
           }
         ]

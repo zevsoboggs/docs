@@ -1,0 +1,60 @@
+---
+title: 'Статус счёта'
+description: 'GET /api/v3/invoices/{id} — детали, плательщик и возвраты'
+---
+
+Возвращает счёт с текущим статусом, **данными плательщика** (маски ФИО/телефона от
+провайдера, если есть) и **списком возвратов**. Требует scope **`invoices:read`**.
+
+**Endpoint:** `GET https://loveandpay.io/api/v3/invoices/{id}`
+
+`{id}` — UUID счёта или его номер (`INV-…`). Заголовки — см. [Аутентификация v3](/api-reference/v3/authentication).
+
+<ResponseExample>
+```json 200
+{
+  "ok": true,
+  "data": {
+    "invoice": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "number": "INV-1784222043319-511e0a9fe1cf",
+      "amount": 1500.50,
+      "currency": "RUB",
+      "status": "PAID",
+      "provider": "KANYON",
+      "customer": { "email": "client@example.com", "name": null, "phone": null },
+      "qr": { "image": "data:image/png;base64,…", "payload": "https://qr.nspk.ru/…", "validitySeconds": 900 },
+      "externalOrderId": "b95b0d28-…",
+      "paymentLink": "https://loveandpay.io/pay/INV-…",
+      "metadata": null,
+      "expiresAt": "2026-07-16T13:00:00.000Z",
+      "paidAt": "2026-07-16T12:05:00.000Z",
+      "createdAt": "2026-07-16T12:00:00.000Z",
+      "payer": { "name": "Иван Иванович И.", "phone": "7********1234", "masked": true },
+      "refunds": []
+    }
+  },
+  "requestId": "5f3c…"
+}
+```
+
+```json 404
+{
+  "ok": false,
+  "error": { "code": "NOT_FOUND", "message": "Invoice not found", "retryable": false },
+  "requestId": "5f3c…"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```javascript Node.js
+const out = await callV3('GET', '/api/v3/invoices/INV-1784222043319-511e0a9fe1cf')
+console.log(out.data.invoice.status, out.data.invoice.payer)
+```
+</RequestExample>
+
+<Note>
+`payer` заполняется после оплаты и только у провайдеров/терминалов, которые отдают эти
+данные (маски). Если данных нет — `payer: null`.
+</Note>

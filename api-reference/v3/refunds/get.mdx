@@ -1,0 +1,50 @@
+---
+title: 'Статус возврата'
+description: 'GET /api/v3/refunds/{id}'
+---
+
+Статус конкретной заявки на возврат. Требует scope **`refunds:read`**.
+
+**Endpoint:** `GET https://loveandpay.io/api/v3/refunds/{id}`
+
+<ResponseExample>
+```json 200
+{
+  "ok": true,
+  "data": {
+    "refund": {
+      "id": "9b1f8c00-…",
+      "invoiceId": "550e8400-…",
+      "invoiceNumber": "INV-…",
+      "amount": 500.00,
+      "feePercent": 0,
+      "feeAmount": 0,
+      "reason": "Клиент отменил заказ",
+      "status": "COMPLETED",
+      "providerRefundId": "356edd80-…",
+      "executionError": null,
+      "adminComment": "ок",
+      "createdAt": "2026-07-16T12:00:00.000Z",
+      "reviewedAt": "2026-07-16T12:05:00.000Z",
+      "executedAt": "2026-07-16T12:05:03.000Z"
+    }
+  },
+  "requestId": "5f3c…"
+}
+```
+
+```json 404
+{ "ok": false, "error": { "code": "NOT_FOUND", "message": "Refund not found", "retryable": false }, "requestId": "5f3c…" }
+```
+</ResponseExample>
+
+<RequestExample>
+```javascript Node.js
+const out = await callV3('GET', '/api/v3/refunds/9b1f8c00-…')
+console.log(out.data.refund.status)
+```
+</RequestExample>
+
+<Note>
+Список возвратов по счёту — `GET /api/v3/invoices/{id}/refund` (тот же формат, массив `refunds`).
+</Note>

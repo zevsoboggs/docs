@@ -1,0 +1,195 @@
+---
+title: 'Аутентификация v3'
+description: 'Клиентский сертификат, подпись запросов, nonce, scopes, идемпотентность, шифрование'
+---
+
+## Модель доверия
+
+Love&Pay выступает удостоверяющим центром (CA) и выпускает вам **клиентский сертификат**
+(ECDSA P-256). Вы подписываете каждый запрос **приватным ключом**, а мы проверяем подпись
+**публичным** (он в сертификате). Ваш приватный ключ **никогда не покидает ваш сервер** и у
+нас не хранится.
+
+<Info>
+Это сильнее HMAC v2: там общий секрет знают обе стороны. В v3 подделать запрос нельзя,
+даже имея доступ к нашей базе — там только публичные ключи.
+</Info>
+
+## Шаг 1. Выпуск сертификата
+
+В кабинете: **[Настройки → API v3 · Сертификаты](https://loveandpay.io/dashboard/settings?tab=v3-certs)** →
+«Выпустить сертификат». Выберите **права (scopes)** и скачайте:
+
+- `loveandpay-client.crt` — ваш сертификат (публичный),
+- `loveandpay-client.key` — **приватный ключ** (показывается один раз!),
+- `loveandpay-root-ca.pem` — корневой сертификат Love&Pay.
+
+Вам понадобятся: **fingerprint** сертификата (SHA-256, показан в кабинете) и файл `.key`.
+
+<Warning>
+Приватный ключ (`.key`) показывается **только при выпуске**. Сохраните его в секрете. Потеряли — отзовите старый сертификат и выпустите новый.
+</Warning>
+
+## Шаг 2. Обязательные заголовки
+
+| Заголовок | Описание |
+|---|---|
+| `x-certificate-fingerprint` | SHA-256 отпечаток сертификата (64 hex-символа) |
+| `x-timestamp` | Unix-время в **миллисекундах**. Окно ±5 минут |
+| `x-nonce` | Уникальная строка на каждый запрос (защита от повтора) |
+| `x-signature` | Подпись (см. ниже), base64 |
+| `idempotency-key` | *(опц.)* ключ идемпотентности для `POST` |
+| `x-encrypted` | *(опц.)* `1` — тело зашифровано, ответ тоже шифруем |
+
+## Шаг 3. Подпись запроса
+
+```
+message   = METHOD + PATH + TIMESTAMP + SHA256(BODY)
+signature = ECDSA-P256-SHA256(privateKey, message)   → base64
+```
+
+<Note>
+**PATH** — без query-параметров (`/api/v3/invoices`, не `/api/v3/invoices?limit=10`).
+Для `GET` тело пустое → `SHA256("")`. Подпись `x-signature` — base64. Принимается формат
+WebCrypto (raw r‖s) **и** DER (OpenSSL) — конвертация на нашей стороне.
+</Note>
+
+### Полный клиент (Node.js)
+
+```javascript
+const crypto = require('crypto')
+const fs = require('fs')
+
+const BASE = 'https://loveandpay.io'
+const FINGERPRINT = 'ae386e4b0ea2aa3d…'                 // из кабинета
+const privateKey = crypto.createPrivateKey(fs.readFileSync('loveandpay-client.key'))
+
+async function callV3(method, path, body = null, opts = {}) {
+  const raw = body ? JSON.stringify(body) : ''
+  const timestamp = Date.now().toString()
+  const nonce = crypto.randomUUID()
+
+  const bodyHash = crypto.createHash('sha256').update(raw).digest('hex')
+  const message = `${method}${path}${timestamp}${bodyHash}`
+  // ECDSA P-256, SHA-256; формат IEEE P1363 (raw r‖s)
+  const signature = crypto.sign('sha256', Buffer.from(message), {
+    key: privateKey, dsaEncoding: 'ieee-p1363',
+  }).toString('base64')
+
+  const headers = {
+    'content-type': 'application/json',
+    'x-certificate-fingerprint': FINGERPRINT,
+    'x-timestamp': timestamp,
+    'x-nonce': nonce,
+    'x-signature': signature,
+  }
+  if (opts.idempotencyKey) headers['idempotency-key'] = opts.idempotencyKey
+
+  const res = await fetch(BASE + path, { method, headers, body: method === 'GET' ? undefined : raw })
+  return res.json()
+}
+
+// Пример: создать счёт (идемпотентно)
+const out = await callV3('POST', '/api/v3/invoices',
+  { amount: 1500, description: 'Заказ #123', customer: { email: 'client@example.com' } },
+  { idempotencyKey: crypto.randomUUID() },
+)
+console.log(out.data.invoice)
+```
+
+### Python
+
+```python
+import time, uuid, json, hashlib
+import requests
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec, utils
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+BASE = 'https://loveandpay.io'
+FINGERPRINT = 'ae386e4b0ea2aa3d…'
+private_key = load_pem_private_key(open('loveandpay-client.key','rb').read(), password=None)
+
+def call_v3(method, path, body=None, idempotency_key=None):
+    raw = json.dumps(body) if body else ''
+    timestamp = str(int(time.time() * 1000))
+    nonce = str(uuid.uuid4())
+    body_hash = hashlib.sha256(raw.encode()).hexdigest()
+    message = f"{method}{path}{timestamp}{body_hash}".encode()
+
+    der = private_key.sign(message, ec.ECDSA(hashes.SHA256()))
+    r, s = utils.decode_dss_signature(der)              # DER → raw r‖s
+    raw_sig = r.to_bytes(32, 'big') + s.to_bytes(32, 'big')
+    import base64
+    signature = base64.b64encode(raw_sig).decode()
+
+    headers = {
+        'content-type': 'application/json',
+        'x-certificate-fingerprint': FINGERPRINT,
+        'x-timestamp': timestamp,
+        'x-nonce': nonce,
+        'x-signature': signature,
+    }
+    if idempotency_key: headers['idempotency-key'] = idempotency_key
+    resp = requests.request(method, BASE + path, headers=headers, data=None if method == 'GET' else raw)
+    return resp.json()
+```
+
+## Nonce и защита от повторов
+
+`x-nonce` — любая уникальная строка (UUID) на **каждый** запрос. Мы запоминаем использованные
+nonce на время окна. Повтор того же nonce → `401 REPLAY_DETECTED`. Это защищает даже
+перехваченный валидный запрос от воспроизведения.
+
+## Права сертификата (scopes)
+
+При выпуске серту назначаются права. Доступ проверяется на каждом методе:
+
+| Scope | Доступ |
+|---|---|
+| `invoices:write` | создание счетов (и чтение) |
+| `invoices:read` | чтение счетов |
+| `refunds:write` | создание возвратов (и чтение) |
+| `refunds:read` | чтение возвратов |
+| `*` | полный доступ |
+
+Если прав не хватает → `403 INSUFFICIENT_SCOPE`. `…:write` включает `…:read`.
+
+## Идемпотентность
+
+Для `POST` передавайте `idempotency-key` (UUID). Повтор с тем же ключом и телом вернёт
+**тот же результат** (заголовок ответа `x-idempotent-replay: true`) — счёт/возврат не
+создастся дважды. Тот же ключ с **другим** телом или во время обработки → `409 IDEMPOTENCY_CONFLICT`.
+
+<Tip>
+Всегда шлите `idempotency-key` при создании счетов и возвратов — это защита от дубль-платежа
+при сетевых сбоях/ретраях. Ключ живёт 24 часа.
+</Tip>
+
+## Шифрование полей (опционально)
+
+Чувствительные данные можно шифровать end-to-end. Получите наш публичный ключ шифрования:
+[GET /api/v3/keys](/api-reference/v3/keys) → `encryptionPublicKeyPem` (ECDH P-256).
+
+Схема: общий секрет = ECDH(вашПриватныйКлюч, нашПубличныйКлючШифрования) → SHA-256 → ключ
+AES-256-GCM. Тело отправляете как `{ "enc": "base64(iv‖ciphertext‖tag)" }` с заголовком
+`x-encrypted: 1`. Подпись `x-signature` считается от **зашифрованного** тела. Ответ мы вернём
+тоже зашифрованным (тем же секретом), с заголовком `x-encrypted: 1`.
+
+<Note>
+Ваш ключ сертификата используется и для подписи (ECDSA), и для вывода общего секрета (ECDH) —
+это один и тот же EC-ключ P-256. Отдельный ключ не нужен.
+</Note>
+
+## Коды ошибок аутентификации
+
+| Код | Статус | Значение |
+|---|---|---|
+| `AUTH_HEADERS_MISSING` | 401 | Нет одного из обязательных заголовков |
+| `BAD_FINGERPRINT` | 400 | fingerprint не 64 hex-символа |
+| `TIMESTAMP_INVALID` | 401 | timestamp вне окна ±5 мин |
+| `REPLAY_DETECTED` | 401 | nonce уже использован |
+| `SIGNATURE_INVALID` | 401 | подпись/сертификат неверны, отозван или истёк |
+| `INSUFFICIENT_SCOPE` | 403 | у сертификата нет нужного права |
+| `IDEMPOTENCY_CONFLICT` | 409 | ключ идемпотентности переиспользован |
+| `API_BLOCKED` | 403 | доступ к API заблокирован |

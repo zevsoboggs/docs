@@ -1,0 +1,37 @@
+---
+title: 'Публичные ключи'
+description: 'GET /api/v3/keys — корневой CA и ключ шифрования'
+---
+
+Публичные ключи Love&Pay для доверия и шифрования. **Аутентификация не требуется.**
+
+**Endpoint:** `GET https://loveandpay.io/api/v3/keys`
+
+- `caCertificatePem` — корневой сертификат (для пиннинга/доверия к выпущенным вам сертификатам).
+- `encryptionPublicKeyPem` — серверный ECDH-ключ (P-256) для [шифрования полей](/api-reference/v3/authentication).
+
+<ResponseExample>
+```json 200
+{
+  "ok": true,
+  "data": {
+    "caCertificatePem": "-----BEGIN CERTIFICATE-----\n…\n-----END CERTIFICATE-----\n",
+    "encryptionPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n",
+    "algorithms": {
+      "signature": "ECDSA-P256-SHA256",
+      "encryption": "ECDH-P256 + AES-256-GCM"
+    }
+  }
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl https://loveandpay.io/api/v3/keys
+```
+</RequestExample>
+
+<Note>
+Корневой сертификат также доступен как файл: `GET /api/v3/ca` (Content-Type `application/x-pem-file`).
+</Note>

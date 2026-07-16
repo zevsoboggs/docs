@@ -1,0 +1,108 @@
+---
+title: 'Создать счёт'
+description: 'POST /api/v3/invoices — создание счёта с QR (идемпотентно)'
+---
+
+Создаёт счёт и регистрирует QR (СБП). Требует scope **`invoices:write`**. Поддерживает
+идемпотентность через `idempotency-key`.
+
+**Endpoint:** `POST https://loveandpay.io/api/v3/invoices`
+
+Заголовки аутентификации — см. [Аутентификация v3](/api-reference/v3/authentication).
+
+## Тело запроса
+
+<ParamField body="amount" type="number" required>
+  Сумма в рублях (например `1500.50`).
+</ParamField>
+
+<ParamField body="description" type="string">
+  Назначение платежа.
+</ParamField>
+
+<ParamField body="customer" type="object">
+  Данные клиента: `email`, `name`, `phone` (все необязательны).
+</ParamField>
+
+<ParamField body="expiresInHours" type="number" default="1">
+  Срок жизни счёта в часах.
+</ParamField>
+
+<ParamField body="paymentMethod" type="string">
+  Метод оплаты для провайдеров, где применимо (напр. `fps`).
+</ParamField>
+
+<ParamField body="successUrl" type="string">
+  URL возврата клиента после оплаты.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Произвольные данные — вернутся в ответе и вебхуках (`metadata`).
+</ParamField>
+
+<ResponseExample>
+```json 201
+{
+  "ok": true,
+  "data": {
+    "invoice": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "number": "INV-1784222043319-511e0a9fe1cf",
+      "amount": 1500.50,
+      "currency": "RUB",
+      "status": "PENDING",
+      "description": "Заказ #123",
+      "provider": "KANYON",
+      "customer": { "email": "client@example.com", "name": null, "phone": null },
+      "qr": {
+        "image": "data:image/png;base64,…",
+        "payload": "https://qr.nspk.ru/AD10…",
+        "validitySeconds": 900
+      },
+      "externalOrderId": "b95b0d28-74a4-4b86-a486-120c3c19005d",
+      "paymentLink": "https://loveandpay.io/pay/INV-1784222043319-511e0a9fe1cf",
+      "metadata": { "orderId": "123" },
+      "expiresAt": "2026-07-16T13:00:00.000Z",
+      "paidAt": null,
+      "createdAt": "2026-07-16T12:00:00.000Z"
+    }
+  },
+  "requestId": "5f3c…"
+}
+```
+
+```json 400 Нет суммы
+{
+  "ok": false,
+  "error": { "code": "INVALID_AMOUNT", "message": "amount must be a positive number (RUB)", "retryable": false, "docsUrl": "https://docs.loveandpay.io/api-reference/v3/authentication" },
+  "requestId": "5f3c…"
+}
+```
+
+```json 409 Нет терминала
+{
+  "ok": false,
+  "error": { "code": "NO_TERMINAL", "message": "No active payment terminal assigned to this partner", "retryable": false },
+  "requestId": "5f3c…"
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```javascript Node.js
+// callV3 — см. страницу «Аутентификация v3»
+const out = await callV3('POST', '/api/v3/invoices', {
+  amount: 1500.50,
+  description: 'Заказ #123',
+  customer: { email: 'client@example.com' },
+  metadata: { orderId: '123' },
+}, { idempotencyKey: crypto.randomUUID() })
+
+console.log(out.data.invoice.qr.payload)
+```
+</RequestExample>
+
+<Note>
+При оплате счёта прилетит вебхук `invoice.paid`, при создании — `invoice.created`.
+См. [Вебхуки](/guides/webhooks).
+</Note>
