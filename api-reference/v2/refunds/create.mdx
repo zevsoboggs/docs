@@ -1,0 +1,187 @@
+---
+title: 'Создать возврат'
+description: 'Заявка на возврат по оплаченному счёту (полный или частичный)'
+api: 'POST https://loveandpay.io/api/v2/invoices/{id}/refund'
+---
+
+Создаёт **заявку на возврат** по оплаченному счёту. Заявка проходит модерацию: её
+подтверждает администратор Love&Pay, после чего возврат исполняется у платёжного
+провайдера. О результате вы узнаёте по [вебхукам](/guides/webhooks) `refund.completed`
+или `refund.failed`.
+
+<Info>
+Возврат возможен только для счетов в статусе **PAID** и по провайдерам, которые его
+поддерживают (СБП). Можно вернуть **всю сумму** или **часть** — и даже несколькими
+частями, пока не исчерпан остаток.
+</Info>
+
+## Заголовки
+
+<ParamField header="x-api-key" type="string" required>
+  Ваш API ключ
+</ParamField>
+
+<ParamField header="x-timestamp" type="string" required>
+  Unix timestamp в миллисекундах
+</ParamField>
+
+<ParamField header="x-signature" type="string" required>
+  HMAC-SHA256 подпись
+</ParamField>
+
+## Path параметры
+
+<ParamField path="id" type="string" required>
+  UUID счёта или его номер (`INV-...`)
+</ParamField>
+
+## Тело запроса
+
+<ParamField body="amount" type="number">
+  Сумма возврата в рублях. **Необязательно** — если не указать, вернётся **весь
+  остаток** по счёту. Для частичного возврата укажите сумму от `0.01` до текущего
+  остатка.
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Причина возврата (до 1000 символов). Отображается администратору при модерации.
+</ParamField>
+
+## Статусы заявки
+
+| Статус | Значение |
+|---|---|
+| `PENDING` | Заявка создана, ожидает решения администратора |
+| `APPROVED` | Утверждена, возврат исполняется у провайдера |
+| `COMPLETED` | Деньги возвращены клиенту ✅ |
+| `FAILED` | Возврат не выполнен (см. `executionError`) |
+| `REJECTED` | Администратор отклонил заявку |
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "refund": {
+    "id": "9b1f8c00-4e21-4a7a-9f0e-2a2f0c7b1234",
+    "invoiceId": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceNumber": "INV-260716-0042",
+    "amount": 500.00,
+    "feePercent": 0,
+    "feeAmount": 0,
+    "reason": "Клиент отменил заказ",
+    "status": "PENDING",
+    "providerRefundId": null,
+    "executionError": null,
+    "adminComment": null,
+    "createdAt": "2026-07-16T12:00:00.000Z",
+    "reviewedAt": null,
+    "executedAt": null
+  }
+}
+```
+
+```json 400 Частичная сумма больше остатка
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_AMOUNT",
+    "message": "amount must be between 0.01 and 660.00 (remaining)"
+  }
+}
+```
+
+```json 409 Уже есть активная заявка
+{
+  "success": false,
+  "error": {
+    "code": "REFUND_IN_PROGRESS",
+    "message": "Refund already pending"
+  }
+}
+```
+
+```json 400 Возврат недоступен
+{
+  "success": false,
+  "error": {
+    "code": "REFUND_NOT_SUPPORTED",
+    "message": "Refund is not available for this invoice"
+  }
+}
+```
+</ResponseExample>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://loveandpay.io/api/v2/invoices/INV-260716-0042/refund" \
+  -H "x-api-key: pk_live_xxx" \
+  -H "x-timestamp: 1706012345678" \
+  -H "x-signature: a1b2c3d4e5f6..." \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 500.00, "reason": "Клиент отменил заказ"}'
+```
+
+```javascript JavaScript
+const crypto = require('crypto');
+
+const API_KEY = 'pk_live_xxx';
+const SECRET_KEY = 'sk_live_xxx';
+
+const invoiceId = 'INV-260716-0042';
+const timestamp = Date.now().toString();
+const method = 'POST';
+const path = `/api/v2/invoices/${invoiceId}/refund`;
+const body = JSON.stringify({ amount: 500.00, reason: 'Клиент отменил заказ' });
+
+const bodyHash = crypto.createHash('sha256').update(body).digest('hex');
+const message = `${method}${path}${timestamp}${bodyHash}`;
+const signature = crypto.createHmac('sha256', SECRET_KEY).update(message).digest('hex');
+
+const response = await fetch('https://loveandpay.io' + path, {
+  method,
+  headers: {
+    'x-api-key': API_KEY,
+    'x-timestamp': timestamp,
+    'x-signature': signature,
+    'Content-Type': 'application/json'
+  },
+  body
+});
+
+console.log(await response.json());
+```
+
+```python Python
+import hashlib
+import hmac
+import json
+import time
+import requests
+
+API_KEY = 'pk_live_xxx'
+SECRET_KEY = 'sk_live_xxx'
+
+invoice_id = 'INV-260716-0042'
+timestamp = str(int(time.time() * 1000))
+method = 'POST'
+path = f'/api/v2/invoices/{invoice_id}/refund'
+body = json.dumps({'amount': 500.00, 'reason': 'Клиент отменил заказ'})
+
+body_hash = hashlib.sha256(body.encode()).hexdigest()
+message = f"{method}{path}{timestamp}{body_hash}"
+signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+response = requests.post(
+    'https://loveandpay.io' + path,
+    headers={
+        'x-api-key': API_KEY,
+        'x-timestamp': timestamp,
+        'x-signature': signature,
+        'Content-Type': 'application/json'
+    },
+    data=body
+)
+
+print(response.json())
+```
+</RequestExample>

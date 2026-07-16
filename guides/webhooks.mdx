@@ -98,8 +98,17 @@ URL вебхука должен вести на **ваш собственный 
 | `kyc.rejected` | KYC отклонён |
 | `kyc.expired` | Срок KYC-сессии истёк |
 
+**Возвраты:**
+
+| Событие | Когда срабатывает |
+|---|---|
+| `refund.requested` | Создана заявка на возврат (через API или кабинет) |
+| `refund.completed` | Администратор утвердил, возврат исполнен ✅ |
+| `refund.failed` | Возврат не удалось исполнить (см. `executionError`) |
+| `refund.rejected` | Администратор отклонил заявку |
+
 <Note>
-Возврат средств отдельным событием не приходит — отслеживайте смену статуса счёта.
+Подробнее о самом процессе — в разделе [Возвраты](/guides/refunds).
 </Note>
 
 ## Формат payload
@@ -141,6 +150,33 @@ X-Webhook-Id: 4f8e9a1d-xxxx-...
 <Note>
 `amount` — в копейках (RUB × 100). Поле `metadata` всегда возвращается из того, что вы передали при создании счёта.
 </Note>
+
+### Пример payload возврата
+
+События `refund.*` присылают объект `refund` (суммы в **рублях**):
+
+```json
+{
+  "event": "refund.completed",
+  "timestamp": 1716207600000,
+  "refund": {
+    "id": "9b1f8c00-4e21-4a7a-9f0e-2a2f0c7b1234",
+    "invoiceId": "550e8400-e29b-41d4-a716-446655440000",
+    "invoiceNumber": "INV-260716-0042",
+    "amount": 500.00,
+    "feePercent": 0,
+    "feeAmount": 0,
+    "reason": "Клиент отменил заказ",
+    "status": "COMPLETED",
+    "providerRefundId": "356edd80-adb7-419e-a9cf-804ee6eda504",
+    "executionError": null,
+    "adminComment": "ок",
+    "createdAt": "2026-07-16T12:00:00.000Z",
+    "reviewedAt": "2026-07-16T12:05:00.000Z",
+    "executedAt": "2026-07-16T12:05:03.000Z"
+  }
+}
+```
 
 ## Проверка HMAC-подписи (обязательно!)
 

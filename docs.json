@@ -33,6 +33,7 @@
             "pages": [
               "guides/creating-invoices",
               "guides/accepting-payments",
+              "guides/refunds",
               "guides/api-access-verification",
               "guides/kyc-verification",
               "guides/kyc-client-guide",
@@ -70,6 +71,14 @@
               "api-reference/v2/invoices/list",
               "api-reference/v2/invoices/get",
               "api-reference/v2/invoices/qrcode"
+            ]
+          },
+          {
+            "group": "Возвраты (Refunds)",
+            "pages": [
+              "api-reference/v2/refunds/create",
+              "api-reference/v2/refunds/get",
+              "api-reference/v2/refunds/list"
             ]
           },
           {

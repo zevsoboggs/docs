@@ -96,7 +96,7 @@ icon: 'circle-question'
 
 <AccordionGroup>
   <Accordion title="Как сделать возврат клиенту?">
-    [Возвраты → Создать заявку](https://loveandpay.io/dashboard/refunds). Доступно только для счетов в статусе `PAID`. Можно полный или частичный.
+    Через [API](/api-reference/v2/refunds/create) (`POST /api/v2/invoices/{id}/refund`) или в кабинете — [Возвраты → Создать заявку](https://loveandpay.io/dashboard/refunds). Доступно только для счетов в статусе `PAID`. Можно полный или частичный. Заявку подтверждает администратор, результат приходит вебхуком `refund.*`. Подробнее — [Возвраты](/guides/refunds).
   </Accordion>
 
   <Accordion title="Сколько идёт возврат?">
